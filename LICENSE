@@ -1,13 +1,8 @@
 MIT License
 
 Copyright (c) 2026 null0xfff and the dsh-bash contributors
-
-This package is a derivative work of dsh-ops
-(https://github.com/T-Auto/dsh-ops), Copyright (c) 2026 T-Auto and the dsh-ops
-contributors, used under the MIT License. Portions of it are additionally
-adapted from @deepseek-ai/dsh-tool-bash, Copyright (c) 2026 DeepSeek, also under
-the MIT License. The original license texts are retained verbatim under
-`licenses/`, and the exact derivation is documented in `docs/PROVENANCE.md`.
+Copyright (c) 2026 T-Auto and the dsh-ops contributors (portions derived from dsh-ops)
+Copyright (c) 2026 DeepSeek (portions adapted from @deepseek-ai/dsh-tool-bash)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
