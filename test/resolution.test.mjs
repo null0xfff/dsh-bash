@@ -147,22 +147,36 @@ suite.test('a POSIX host answers with its own bash, no opt-in needed', () => {
   home.cleanup()
 })
 
-suite.test('a POSIX host falls back to its own bash, or names the distribution remedy', () => {
+suite.test('a POSIX host with no bash names the distribution remedy', () => {
+  const home = createHome()
+  // The probe is the host fact this case is about: on a runner that carries /bin/bash the real
+  // filesystem answers `true` and the remedy is never reached, so the answer is named here.
+  const shells = resolveShells(resolveConfig({}), {
+    bundleRoot: path.resolve(import.meta.dirname, '..'),
+    env: home.env({ PATH: path.join(scratch, 'empty') }),
+    platform: 'darwin',
+    arch: 'arm64',
+    probe: () => false,
+  })
+  assert.equal(shells.bash.available, false)
+  assert.equal(shells.bash.source, 'missing')
+  assert.match(shells.bash.detail, /install bash with the distribution package manager/)
+  home.cleanup()
+})
+
+suite.test('a POSIX host answers with the well-known bash when PATH carries none', () => {
   const home = createHome()
   const shells = resolveShells(resolveConfig({}), {
     bundleRoot: path.resolve(import.meta.dirname, '..'),
     env: home.env({ PATH: path.join(scratch, 'empty') }),
     platform: 'darwin',
     arch: 'arm64',
+    probe: file => file === '/bin/bash',
   })
-  // /bin/bash exists on the CI runner and on macOS, and does not exist on Windows:
-  // both facts are legitimate answers from the same ladder.
-  if (shells.bash.available) {
-    assert.equal(shells.bash.source, 'well-known')
-    assert.match(shells.bash.detail, /well-known location|distributions own bash|host distribution/)
-  } else {
-    assert.match(shells.bash.detail, /install bash with the distribution package manager/)
-  }
+  assert.equal(shells.bash.available, true)
+  assert.equal(shells.bash.source, 'well-known')
+  assert.equal(shells.bash.file, '/bin/bash')
+  assert.match(shells.bash.detail, /well-known location/)
   home.cleanup()
 })
 

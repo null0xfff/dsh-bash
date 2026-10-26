@@ -6,10 +6,15 @@ import { createHome } from './lib/host.mjs'
 import { createSuite } from './lib/harness.mjs'
 
 const { managedBashInventory, removeManagedBash, selectBashRuntime, gitBashCandidates } = await import('../lib/shells/manager.js')
-const { provisionedShell, provisionedShellVersionDir } = await import('../lib/shells.js')
+const { provisionedShell, provisionedShellVersionDir, shellUpstreamPin } = await import('../lib/shells.js')
 const { resolveShells } = await import('../lib/shells.js')
 const { resolveConfig } = await import('../lib/config.js')
 const suite = createSuite('provisioner')
+
+// The pinned bash payload is a win32 one, so these cases name the platform they resolve for
+// instead of inheriting the runner's: a POSIX host then answers the same question.
+const WINDOWS_BASH = { platform: 'win32', arch: 'x64' }
+const WINDOWS_BASH_PIN = shellUpstreamPin({ kind: 'bash', ...WINDOWS_BASH })
 
 suite.test('the store path is under DSH_HOME and names this package', () => {
   const home = createHome()
@@ -91,19 +96,26 @@ suite.test('the resolved store copy is what the ladder reports', () => {
   home.cleanup()
 })
 
-suite.test('selectBashRuntime("managed") picks the greatest owned version', { skip: process.platform !== 'win32', skipReason: 'the pinned bash payload exists only for win32' }, () => {
+suite.test('selectBashRuntime("managed") picks the greatest owned version', () => {
   const home = createHome()
-  for (const version of ['1.0.0', '2.0.0']) home.receipt(home.store('bash', version).directory, version)
-  const selection = selectBashRuntime('managed', { env: home.env() })
+  // The store is laid out on the pin's own relative path, so the case exercises the selection
+  // (greatest version, receipt-marked only) rather than the payload name of this host.
+  for (const version of ['1.0.0', '2.0.0'])
+    home.receipt(home.store('bash', version, WINDOWS_BASH_PIN.executableRelativePath).directory, version)
+  const selection = selectBashRuntime('managed', { env: home.env(), ...WINDOWS_BASH })
   assert.equal(selection.source, 'managed')
-  assert.match(selection.file, /2\.0\.0/)
+  assert.ok(selection.file.endsWith(path.join('2.0.0', WINDOWS_BASH_PIN.executableRelativePath)))
   assert.deepEqual(selection.config, { bashPath: selection.file })
   home.cleanup()
 })
 
-suite.test('outside Windows there is no managed bash pin to select', { skip: process.platform === 'win32', skipReason: 'win32 has the pin' }, () => {
+suite.test('outside Windows there is no managed bash pin to select', () => {
   const home = createHome()
-  assert.throws(() => selectBashRuntime('managed', { env: home.env() }), /No managed Bash is installed/)
+  // A store laid out for the Windows pin is still not a POSIX selection: no POSIX pin exists, so
+  // the rung cannot name a payload and refuses instead of guessing one.
+  for (const version of ['1.0.0', '2.0.0'])
+    home.receipt(home.store('bash', version, WINDOWS_BASH_PIN.executableRelativePath).directory, version)
+  assert.throws(() => selectBashRuntime('managed', { env: home.env(), platform: 'linux', arch: 'x64' }), /No managed Bash is installed/)
   home.cleanup()
 })
 

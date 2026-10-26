@@ -87,7 +87,7 @@ suite.test('caller cancellation is reported as cancelled, not as a timeout', { s
   assert.notEqual(value.timedOut, true)
 })
 
-suite.test('bounded capture keeps an honest truncation flag and a spill path', async () => {
+suite.test('bounded capture keeps an honest truncation flag and a spill path', { skip: !hasBash }, async () => {
   const host = hostFor('danger-full-access', { subprocess: createSubprocess({ maxBytes: 8 }) })
   const definition = bashToolDefinition({ file: bash.file ?? '/bin/bash', source: 'config', subprocess: host.subprocess })
   const value = await definition.execute({ command: 'printf 0123456789abcdef', description: 'truncation' }, {})
