@@ -3,6 +3,21 @@
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- `resolveShells` takes an optional `probe` for the well-known install locations. Production
+  passes none and the real filesystem answers; a caller resolving against a host other than its
+  own can name that answer, which is what makes both ends of that rung testable on one machine.
+
+### Fixed
+
+- The suites no longer encode the host they were written on: the managed bash selection names the
+  win32 pin it resolves against (and proves the POSIX refusal with a win32-shaped store present),
+  the POSIX remedy case pins the well-known answer instead of accepting either one, and the
+  capture-truncation case skips where no bash can run instead of failing.
+
 ## [0.1.0] - 2026-10-26
 
 ### Added
