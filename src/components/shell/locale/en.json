@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "dsh-bash",
+    "description": "Publishes ops_bash over a resolved bash; the host keeps its own PowerShell."
+  }
+}

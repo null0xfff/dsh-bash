@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "dsh-bash",
+    "description": "Publishes ops_bash over a resolved bash with the host's sandbox, spill and job semantics. Extracted from dsh-ops."
+  }
+}

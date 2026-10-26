@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "dsh-bash",
+    "description": "用解析到的 bash 发布 ops_bash，沿用宿主的沙箱、输出溢出与后台任务语义。从 dsh-ops 抽出。"
+  }
+}

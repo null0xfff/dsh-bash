@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "dsh-bash",
+    "description": "用解析到的 bash 发布 ops_bash；PowerShell 仍由宿主提供。"
+  }
+}

@@ -1,0 +1,10 @@
+# One component row: the bash half of dsh-ops, extracted as a standalone plugin.
+# Saved profile overrides still take precedence over this layer.
+- insert:
+    - id: dsh-bash-shell
+      name: dsh-bash/shell
+      config:
+        promptPolicy: true
+        publishBashTool: true
+        shellPolicy: advise
+        allowSystemShellFallback: false

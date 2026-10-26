@@ -1,0 +1,80 @@
+{
+  "$schema": "https://raw.githubusercontent.com/T-Auto/dsh-std/8a15541117cb3c13ddb8f2468308691b6051d162/packages/manifest/schema/dsh-plugin-0.15.schema.json",
+  "manifestVersion": "0.15",
+  "id": "dsh-bash.shell",
+  "name": "dsh-bash",
+  "version": "0.1.0",
+  "license": "MIT",
+  "facets": {
+    "host": {
+      "entry": "lib/index.js",
+      "apiVersion": "v1alpha1"
+    }
+  },
+  "requires": {
+    "contracts": [
+      {
+        "apiVersion": "tools.dsh/v1alpha1",
+        "kind": "Tool"
+      }
+    ]
+  },
+  "permissions": [
+    {
+      "name": "dsh-bash.process.spawn",
+      "scope": "subprocess",
+      "reason": "Run the resolved bash through the host subprocess service so DSH policy, credential scrubbing and process containment stay in force."
+    },
+    {
+      "name": "dsh-bash.fs.read",
+      "scope": "filesystem-read",
+      "reason": "Probe the configured, provisioned, bundled and well-known bash executables and their MSYS provenance receipt."
+    },
+    {
+      "name": "dsh-bash.fs.write",
+      "scope": "dsh-home",
+      "reason": "Stage the verified private MSYS runtime under DSH_HOME and write the workspace ACL backup receipt."
+    }
+  ],
+  "contributes": {
+    "x-display": [
+      {
+        "icon": "./docs/assets/icon.png",
+        "title": "dsh-bash",
+        "description": "Publishes ops_bash over a resolved bash with the host's sandbox, spill and job semantics. Extracted from dsh-ops.",
+        "locales": [
+          "locale/en.json",
+          "locale/zh.json"
+        ]
+      }
+    ],
+    "x-prompt-sections": [
+      {
+        "name": "dsh-bash:shell-routing",
+        "order": 3251,
+        "summary": "Prefer ops_bash; use the visible host PowerShell only for Windows-native functionality."
+      }
+    ],
+    "x-tool-namespaces": [
+      {
+        "serverName": "dsh-bash",
+        "transport": "in-process",
+        "source": "the plugin's bash layer via host subprocess",
+        "publicPrefix": "ops_",
+        "tools": ["bash"],
+        "shellPermission": "publishBashTool AND authoritative per-session DSH policy; restricted modes require host confinement"
+      }
+    ],
+    "x-components": [
+      {
+        "id": "dsh-bash-shell",
+        "entry": "dsh-bash/shell",
+        "defaultEnabled": true,
+        "platforms": ["win32", "linux", "darwin"],
+        "targets": ["win32-x64", "linux-x64", "darwin-arm64", "darwin-x64"],
+        "tools": ["ops_bash"]
+      }
+    ]
+  },
+  "subscriptions": []
+}

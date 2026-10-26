@@ -1,0 +1,25 @@
+dsh-bash
+Copyright (c) 2026 null0xfff and the dsh-bash contributors
+
+This distribution is a derivative work of dsh-ops
+(https://github.com/T-Auto/dsh-ops), Copyright (c) 2026 T-Auto and the dsh-ops
+contributors, distributed under the MIT License. The MIT license text of
+dsh-ops is retained verbatim at licenses/dsh-ops-LICENSE.
+
+Parts of the shell tool contract (src/shells/host-tool.ts,
+src/shells/host-contract.ts, src/shells/approval.ts) are adapted, through
+dsh-ops, from @deepseek-ai/dsh-tool-bash 0.2.0-rc.2, Copyright (c) 2026
+DeepSeek, distributed under the MIT License. That license text is retained
+verbatim at licenses/deepseek-harness/LICENSE.
+
+The Windows MSYS IPC compatibility sources under native/bash-ipc/ are original
+MIT code from dsh-ops, carried over unchanged.
+
+No shell binary is redistributed by this package. `node bin/dsh-bash.mjs
+provision` downloads a pinned upstream release (Git for Windows PortableGit,
+which contains GPL-2.0 and other licensed components) and verifies its SHA-256
+before installing it under DSH_HOME. PowerShell is neither bundled nor
+managed by this package; the host owns it.
+
+See docs/PROVENANCE.md for the exact upstream commit, the file-level mapping,
+and every deliberate change.

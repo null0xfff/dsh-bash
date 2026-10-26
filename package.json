@@ -1,0 +1,110 @@
+{
+  "name": "dsh-bash",
+  "version": "0.1.0",
+  "description": "DSH plugin that publishes ops_bash over a resolved bash with the host's sandbox, spill and job semantics. Extracted from dsh-ops 0.4.1.",
+  "license": "MIT",
+  "author": "null0xfff",
+  "type": "module",
+  "main": "lib/index.js",
+  "icon": "./docs/assets/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/null0xfff/dsh-bash.git"
+  },
+  "homepage": "https://github.com/null0xfff/dsh-bash#readme",
+  "bugs": {
+    "url": "https://github.com/null0xfff/dsh-bash/issues"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "bash",
+    "shell"
+  ],
+  "os": [
+    "win32",
+    "linux",
+    "darwin"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "exports": {
+    ".": {
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json",
+    "./shell": {
+      "default": "./lib/components/shell/index.js"
+    },
+    "./shell/package.json": "./lib/components/shell/package.json",
+    "./shell/locale/*.json": "./lib/components/shell/locale/*.json",
+    "./shell/icon": "./lib/components/shell/icon.png",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "lib",
+    "bin",
+    "scripts",
+    "native",
+    "licenses",
+    "docs",
+    "locale",
+    "cordis.patch.yml",
+    "dsh-plugin.json",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    "runtime"
+  ],
+  "bin": {
+    "dsh-bash": "bin/dsh-bash.mjs"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "prepack": "node scripts/build.mjs",
+    "typecheck": "tsc -p . --noEmit",
+    "validate:manifest": "node scripts/validate-manifest.mjs",
+    "provision": "node scripts/provision-bash.mjs",
+    "status": "node bin/dsh-bash.mjs status",
+    "test": "node scripts/build.mjs && node test/run.mjs",
+    "verify": "node scripts/build.mjs && node scripts/validate-manifest.mjs && node test/run.mjs",
+    "verify:install": "node scripts/verify-install.mjs desktop"
+  },
+  "engines": {
+    "node": "^22.19 || >=24",
+    "dsh": "0.2.1-rc.2 || 0.2.1-rc.3"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.4",
+    "@deepseek-ai/dsh": "0.2.1-rc.2 || 0.2.1-rc.3"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/cordis": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-sandbox": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-sandbox-policy": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-subprocess": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.3",
+    "@dsh-std/manifest": "^0.1.1-rc.3",
+    "@types/node": "22.20.5",
+    "typescript": "6.0.3",
+    "yaml": "^2.9.1"
+  }
+}

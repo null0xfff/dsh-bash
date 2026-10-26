@@ -1,0 +1,6 @@
+{
+  "name": "dsh-bash",
+  "description": "Publishes ops_bash over a resolved bash; the host keeps its own PowerShell.",
+  "icon": "./icon.png",
+  "type": "module"
+}

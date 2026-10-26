@@ -1,0 +1,7 @@
+# Keep the tree LF so the committed lib/ matches what tsc writes on every platform.
+* text=auto eol=lf
+
+*.png binary
+*.tgz binary
+*.exe binary
+*.dll binary

@@ -1,0 +1,13 @@
+# Dependencies and build scratch
+node_modules/
+*.tgz
+
+# Generated at build/run time, never committed
+runtime/
+*.log
+.dsh-tmp/
+coverage/
+
+# OS noise
+Thumbs.db
+.DS_Store
