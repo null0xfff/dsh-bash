@@ -159,12 +159,15 @@ node bin/dsh-bash.mjs status
 ### 本机现状
 
 本机 `dsh plugin ... add` 被**无关依赖**挡住：`dsh-purge` 的 GitHub 归档摘要与 lockfile 不一致
-（`ERR_PNPM_TARBALL_INTEGRITY`），pnpm 拒绝继续，与本插件无关。因此本机改用等价的手工安装：
+（`ERR_PNPM_TARBALL_INTEGRITY`），pnpm 拒绝继续，与本插件无关。等价的手工安装步骤：
 
-1. 把 tarball 解到 `<DSH_HOME>\profiles\desktop\node_modules\dsh-bash`；
-2. profile `package.json` 加 `"dsh-bash": "file:C:/.../bash-module"`；
-3. 把 `"dsh-bash"` 追加到 `dsh.profile.bundles`；
+1. 把包内容解到 `<DSH_HOME>\profiles\desktop\node_modules\dsh-bash`；
+2. profile `package.json` 的依赖写 `"dsh-bash": "github:null0xfff/dsh-bash"`（本机已如此）；
+3. `"dsh-bash"` 出现在 `dsh.profile.bundles`；
 4. 重启应用——`ops_bash` 才会出现在工具表里。
+
+上述 git 安装路径已在临时 profile 上实测通过：`dsh plugin --profile <new> add github:null0xfff/dsh-bash`
+装好后启动 web 应用，stderr 无激活警告，行 `dsh-bash-shell` 正常挂载。
 
 安装状态可随时自检（只读，不启动应用）：
 
@@ -173,8 +176,7 @@ node scripts/verify-install.mjs desktop
 # package/dependency/bundle row/bash/source/restricted 六项，附结论
 ```
 
-若日后修好 `dsh-purge` 的摘要问题，把手工步骤换回标准的 `dsh plugin ... add` 即可，
-profile 里的依赖与 bundles 条目已经是它需要的形态。
+修好 `dsh-purge` 的摘要问题后，标准命令即可原样接管这套依赖与 bundles 配置。
 
 ## 与 dsh-ops 的行为差异
 
@@ -185,6 +187,7 @@ profile 里的依赖与 bundles 条目已经是它需要的形态。
 
 ## 许可与来源
 
-- 移植自 **dsh-ops**（MIT，Copyright (c) 2026 T-Auto and the dsh-ops contributors），见 `licenses/dsh-ops-LICENSE`。
-- `src/shells/host-tool.ts`、`src/shells/host-contract.ts`、`src/shells/approval.ts` 另改编自 `@deepseek-ai/dsh-tool-bash` 0.2.0-rc.2（MIT，Copyright (c) 2026 DeepSeek），见 `licenses/deepseek-harness/LICENSE`。
+- 本项目为 **二次开发**：移植自 **dsh-ops** 0.4.1 / commit `dfafddc`（MIT，Copyright (c) 2026 T-Auto and the dsh-ops contributors），原文见 `licenses/dsh-ops-LICENSE`；逐文件对应与改动见 [`docs/PROVENANCE.md`](docs/PROVENANCE.md)。
+- `src/shells/host-tool.ts`、`src/shells/host-contract.ts`、`src/shells/approval.ts` 另改编自 `@deepseek-ai/dsh-tool-bash` 0.2.0-rc.2（MIT，Copyright (c) 2026 DeepSeek），原文见 `licenses/deepseek-harness/LICENSE`。
+- 本仓库 `LICENSE` 保留上述版权行，第三方声明汇总在 [`NOTICE`](NOTICE)。
 - Windows bash 载荷来自 Git for Windows（GPL-2.0 等组件），仅按 dsh-ops 的钉住版本与摘要下载，不随包分发；`native/bash-ipc/*.cpp` 为 dsh-ops 原创 MIT 代码。
