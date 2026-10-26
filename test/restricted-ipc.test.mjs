@@ -78,7 +78,8 @@ suite.test('the failure remedy names the pinned-runtime rule and the operator ne
 })
 
 suite.test('the private PATH puts the verified tree first and last', () => {
-  const value = privateRuntimePath('C:/cache/generation', 'C:/one;C:/two')
+  const inherited = ['C:/one', 'C:/two'].join(path.delimiter)
+  const value = privateRuntimePath('C:/cache/generation', inherited)
   const parts = value.split(path.delimiter)
   assert.equal(parts[0], path.join('C:/cache/generation', 'usr/bin'))
   assert.ok(parts.includes('C:/one') && parts.includes('C:/two'))

@@ -33,7 +33,9 @@ for (const file of files) {
   }
 }
 
-console.log(`\n${totals.failed === 0 ? 'ALL SUITES PASSED' : 'SUITE FAILURES'}: ${totals.suites - totals.failed}/${totals.suites} suites`)
+console.log(totals.failed === 0
+  ? `\nALL SUITES PASSED: ${totals.suites}/${totals.suites} suites`
+  : `\nSUITE FAILURES: ${totals.failed}/${totals.suites} suites failed`)
 if (totals.failed > 0) {
   for (const file of failed) console.log(`  - ${file}`)
   process.exitCode = 1

@@ -91,13 +91,19 @@ suite.test('the resolved store copy is what the ladder reports', () => {
   home.cleanup()
 })
 
-suite.test('selectBashRuntime("managed") picks the greatest owned version', () => {
+suite.test('selectBashRuntime("managed") picks the greatest owned version', { skip: process.platform !== 'win32', skipReason: 'the pinned bash payload exists only for win32' }, () => {
   const home = createHome()
   for (const version of ['1.0.0', '2.0.0']) home.receipt(home.store('bash', version).directory, version)
   const selection = selectBashRuntime('managed', { env: home.env() })
   assert.equal(selection.source, 'managed')
   assert.match(selection.file, /2\.0\.0/)
   assert.deepEqual(selection.config, { bashPath: selection.file })
+  home.cleanup()
+})
+
+suite.test('outside Windows there is no managed bash pin to select', { skip: process.platform === 'win32', skipReason: 'win32 has the pin' }, () => {
+  const home = createHome()
+  assert.throws(() => selectBashRuntime('managed', { env: home.env() }), /No managed Bash is installed/)
   home.cleanup()
 })
 

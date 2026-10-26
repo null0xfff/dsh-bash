@@ -147,7 +147,7 @@ suite.test('a POSIX host answers with its own bash, no opt-in needed', () => {
   home.cleanup()
 })
 
-suite.test('a POSIX host with no bash names the distribution remedy', () => {
+suite.test('a POSIX host falls back to its own bash, or names the distribution remedy', () => {
   const home = createHome()
   const shells = resolveShells(resolveConfig({}), {
     bundleRoot: path.resolve(import.meta.dirname, '..'),
@@ -155,8 +155,14 @@ suite.test('a POSIX host with no bash names the distribution remedy', () => {
     platform: 'darwin',
     arch: 'arm64',
   })
-  assert.equal(shells.bash.available, false)
-  assert.match(shells.bash.detail, /install bash with the distribution package manager/)
+  // /bin/bash exists on the CI runner and on macOS, and does not exist on Windows:
+  // both facts are legitimate answers from the same ladder.
+  if (shells.bash.available) {
+    assert.equal(shells.bash.source, 'well-known')
+    assert.match(shells.bash.detail, /well-known location|distributions own bash|host distribution/)
+  } else {
+    assert.match(shells.bash.detail, /install bash with the distribution package manager/)
+  }
   home.cleanup()
 })
 
