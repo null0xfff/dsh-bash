@@ -78,13 +78,16 @@ suite.test('the failure remedy names the pinned-runtime rule and the operator ne
 })
 
 suite.test('the private PATH puts the verified tree first and last', () => {
-  const inherited = ['C:/one', 'C:/two'].join(path.delimiter)
-  const value = privateRuntimePath('C:/cache/generation', inherited)
-  const parts = value.split(path.delimiter)
-  assert.equal(parts[0], path.join('C:/cache/generation', 'usr/bin'))
-  assert.ok(parts.includes('C:/one') && parts.includes('C:/two'))
-  assert.equal(parts[parts.length - 2], path.join('C:/cache/generation', 'ucrt64/bin'))
-  assert.equal(parts[parts.length - 1], path.join('C:/cache/generation', 'cmd'))
+  // Build the fixture with the host's own separators: a Windows drive colon inside a
+  // PATH entry is a delimiter on POSIX and would split the entry in half.
+  const target = path.join('cache', 'generation')
+  const inherited = [path.join('opt', 'one'), path.join('opt', 'two')]
+  const parts = privateRuntimePath(target, inherited.join(path.delimiter)).split(path.delimiter)
+  assert.equal(parts[0], path.join(target, 'usr/bin'))
+  assert.equal(parts[1], inherited[0])
+  assert.equal(parts[2], inherited[1])
+  assert.equal(parts[parts.length - 2], path.join(target, 'ucrt64/bin'))
+  assert.equal(parts[parts.length - 1], path.join(target, 'cmd'))
 })
 
 suite.test('renameWithRetry retries the transient sharing violation', () => {
