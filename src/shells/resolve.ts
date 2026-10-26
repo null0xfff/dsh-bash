@@ -40,9 +40,17 @@ import {
 interface BashProbe {
   configured?: string; provisioned?: { file: string; version: string }; bundled?: string
   bundledDetail?: string; bundledCause?: BundledCause; allowSystemFallback: boolean
-  env: NodeJS.ProcessEnv; platform: string; posix?: boolean
+  env: NodeJS.ProcessEnv; platform: string; posix?: boolean; probe: (file: string) => boolean
 }
-export interface ShellResolutionOptions { bundleRoot?: string; env?: NodeJS.ProcessEnv; platform?: string; arch?: string }
+export interface ShellResolutionOptions {
+  bundleRoot?: string; env?: NodeJS.ProcessEnv; platform?: string; arch?: string
+  /**
+   * Existence probe for the well-known install locations. Production passes none and the real
+   * filesystem answers; a caller that resolves against a host other than its own can name the
+   * answer instead, which is the only way both ends of that rung are testable on one machine.
+   */
+  probe?: (file: string) => boolean
+}
 type ShellConfig = Partial<Pick<ResolvedConfig, 'bashPath' | 'publishBashTool' | 'allowSystemShellFallback'>>
 
 /** The directory this module was loaded from; the resolution root of a checkout. */
@@ -66,6 +74,8 @@ const MODULE_ROOT = PACKAGE_ROOT
  * @param {boolean} options.allowSystemFallback - whether system installations may be used.
  * @param {NodeJS.ProcessEnv} options.env - the environment to read.
  * @param {string} options.platform - `process.platform`.
+ * @param {(file: string) => boolean} [options.probe] - existence probe for the well-known
+ *   install locations; the real filesystem answers unless a caller injects one.
  * @returns {import('./paths.js').ShellResolution} the resolution.
  */
 function resolveBash({
@@ -78,6 +88,7 @@ function resolveBash({
   env,
   platform,
   posix = platform !== 'win32',
+  probe = isSpawnableFile,
 }: BashProbe): ShellResolution {
   if (configured !== undefined) {
     return isSpawnableFile(configured)
@@ -132,7 +143,7 @@ function resolveBash({
     }
   }
   for (const candidate of wellKnownCandidates({ kind: 'bash', env, platform })) {
-    if (isSpawnableFile(candidate)) {
+    if (probe(candidate)) {
       return {
         available: true,
         file: candidate,
@@ -171,6 +182,8 @@ function resolvePwsh(): ShellResolution {
  * @param {NodeJS.ProcessEnv} [options.env] - the environment to probe.
  * @param {string} [options.platform] - `process.platform`.
  * @param {string} [options.arch] - `process.arch`.
+ * @param {(file: string) => boolean} [options.probe] - existence probe for the well-known
+ *   install locations; the real filesystem answers unless a caller injects one.
  * @returns {{bash: import('./paths.js').ShellResolution, pwsh: import('./paths.js').ShellResolution}} one resolution per rung.
  */
 export function resolveShells(config: ShellConfig | undefined, options: ShellResolutionOptions = {}): { bash: ShellResolution; pwsh: ShellResolution } {
@@ -209,6 +222,7 @@ export function resolveShells(config: ShellConfig | undefined, options: ShellRes
       env,
       platform,
       posix,
+      probe: options.probe ?? isSpawnableFile,
     }),
     pwsh,
   }
