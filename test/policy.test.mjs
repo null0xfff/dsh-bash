@@ -4,6 +4,22 @@ import { createSuite } from './lib/harness.mjs'
 
 const { TOOLING_SECTION, SECTION_ORDERS, TOOL_PREFIX, publicToolName, BASH_TOOL, renderToolingPolicy, hostShellRefusal } = await import('../lib/policy.js')
 const suite = createSuite('policy')
+const { visibleNames } = await import('../lib/surface.js')
+
+suite.test('tool inspection uses DSH 0.2.2 public definitions with the requested scope', () => {
+  const scope = {}
+  const tools = {
+    definitions(input) { assert.equal(input, scope); return [{ name: 'ops_bash' }, { name: 'pwsh' }] },
+    schemas() { throw new Error('should not clone schemas') },
+    view() { throw new Error('private registry view must not be used') },
+  }
+  assert.deepEqual(visibleNames(tools, scope), ['ops_bash', 'pwsh'])
+})
+
+suite.test('older hosts fall back to scoped schemas', () => {
+  const scope = {}
+  assert.deepEqual(visibleNames({ schemas(input) { assert.equal(input, scope); return [{ name: 'ops_bash' }] } }, scope), ['ops_bash'])
+})
 
 suite.test('the published name keeps the ops_ namespace', () => {
   assert.equal(TOOL_PREFIX, 'ops_')

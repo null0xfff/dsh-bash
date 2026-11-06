@@ -125,6 +125,7 @@ export function createHost({
       return (scope.registrations ?? registrations).find(definition => definition.name === name)
     },
     schemas() { return registrations.map(definition => ({ name: definition.name, parameters: definition.parameters })) },
+    definitions(scope) { return scope?.registrations ?? registrations },
     view(scope) {
       const list = scope?.registrations ?? registrations
       return { visible: { keys: () => list.map(definition => definition.name) } }
@@ -173,6 +174,7 @@ export function createHost({
         }
       },
       schemas() { return agentRegistrations.map(definition => ({ name: definition.name, parameters: definition.parameters })) },
+      definitions() { return agentRegistrations },
       view() { return { visible: { keys: () => agentRegistrations.map(definition => definition.name) } } },
     }
     const agent = {

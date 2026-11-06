@@ -161,8 +161,10 @@ suite.test('the provisioner script verifies both digests before installing', () 
 })
 
 suite.test('the package declares the host versions it was built against', () => {
-  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-tools'], '0.2.1-rc.3')
+  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-tools'], '0.2.2-rc.1')
   assert.match(pkg.engines.dsh, /0\.2\.1-rc\.3/)
+  assert.match(pkg.engines.dsh, /0\.2\.2-rc\.1/)
+  assert.equal(pkg.engines.dsh, pkg.peerDependencies['@deepseek-ai/dsh'])
   assert.ok(pkg.peerDependenciesMeta['@deepseek-ai/dsh'].optional)
 })
 
