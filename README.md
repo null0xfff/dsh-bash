@@ -1,5 +1,7 @@
 # dsh-bash
 
+0.1.1 支持 DSH `0.2.1-rc.2`、`0.2.1-rc.3` 和 `0.2.2-rc.1`。构建类型与锁文件已更新到 `0.2.2-rc.1`；工具名称检查使用公开的 `definitions(scope)`，旧宿主回退到 `schemas(scope)`。
+
 从 [`T-Auto/dsh-ops`](https://github.com/T-Auto/dsh-ops) **0.4.1**（commit `dfafddc`，MIT）中单独抽出的 **bash 组件**：
 只做一件事——把 `ops_bash` 发布成一个具备宿主管辖（sandbox / 审批 / 输出溢出 / 后台 job）语义的 shell 工具。
 file / PTC / discovery / panel / TUI / hide-official 这六条组件行全部没有移植。
