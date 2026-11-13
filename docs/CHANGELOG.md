@@ -18,6 +18,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
   the POSIX remedy case pins the well-known answer instead of accepting either one, and the
   capture-truncation case skips where no bash can run instead of failing.
 
+## [0.1.2] - 2026-11-13
+
+### Changed
+
+- Add DSH `0.2.2-rc.3` to both `engines.dsh` and the optional DSH peer range, preserving
+  the previously declared `0.2.1-rc.2`, `0.2.1-rc.3`, and `0.2.2-rc.1` support. Keep exact
+  prerelease entries rather than admitting unverified RCs or stable releases.
+- Build and typecheck against DSH `0.2.2-rc.3` packages; regenerate the lockfile with a
+  consistent rc.3 dependency graph. Runtime execution, sandbox, approval and job semantics
+  are unchanged.
+- Bump the package and community manifest together to `0.1.2`.
+
+### Added
+
+- Packaging regressions using the host's `semver.satisfies(..., { includePrerelease: true })`
+  options: accept all declared host versions, reject unverified releases, and require the
+  package/lockfile versions, host gates and rc.3 type dependencies to stay in sync.
+
 ## [0.1.0] - 2026-10-26
 
 ### Added
