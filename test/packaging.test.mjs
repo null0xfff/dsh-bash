@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
 import { parse as parseYaml } from 'yaml'
+import semver from 'semver'
 import { createSuite } from './lib/harness.mjs'
 
 const pkgRoot = path.resolve(import.meta.dirname, '..')
@@ -160,12 +161,39 @@ suite.test('the provisioner script verifies both digests before installing', () 
   assert.match(script, /schemaVersion: 1/)
 })
 
-suite.test('the package declares the host versions it was built against', () => {
-  assert.equal(pkg.devDependencies['@deepseek-ai/dsh-tools'], '0.2.2-rc.1')
-  assert.match(pkg.engines.dsh, /0\.2\.1-rc\.3/)
-  assert.match(pkg.engines.dsh, /0\.2\.2-rc\.1/)
-  assert.equal(pkg.engines.dsh, pkg.peerDependencies['@deepseek-ai/dsh'])
+suite.test('the host version gates admit every supported prerelease', () => {
+  const ranges = [pkg.engines.dsh, pkg.peerDependencies['@deepseek-ai/dsh']]
+  assert.equal(ranges[0], ranges[1])
   assert.ok(pkg.peerDependenciesMeta['@deepseek-ai/dsh'].optional)
+  for (const range of ranges) {
+    for (const version of ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.2-rc.1', '0.2.2-rc.3']) {
+      assert.ok(semver.satisfies(version, range, { includePrerelease: true }), `${range} rejects ${version}`)
+    }
+  }
+})
+
+suite.test('the host version gates do not admit unverified releases', () => {
+  for (const range of [pkg.engines.dsh, pkg.peerDependencies['@deepseek-ai/dsh']]) {
+    for (const version of ['0.2.0', '0.2.1', '0.2.2-rc.2', '0.2.2-rc.4', '0.2.2', '0.2.3-rc.1', '0.3.0']) {
+      assert.equal(semver.satisfies(version, range, { includePrerelease: true }), false, `${range} admits ${version}`)
+    }
+  }
+})
+
+suite.test('all host type dependencies and locked packages use the target release', () => {
+  const target = '0.2.2-rc.3'
+  const hostDependencies = Object.entries(pkg.devDependencies).filter(([name]) => name.startsWith('@deepseek-ai/dsh-'))
+  assert.ok(hostDependencies.length > 0)
+  for (const [name, version] of hostDependencies) assert.equal(version, target, `${name} has stale types`)
+  const lock = readJson('package-lock.json')
+  assert.equal(lock.version, pkg.version)
+  assert.equal(lock.packages[''].version, pkg.version)
+  for (const field of ['devDependencies', 'engines', 'peerDependencies']) {
+    assert.deepEqual(lock.packages[''][field], pkg[field], `lockfile has stale ${field}`)
+  }
+  const hostPackages = Object.entries(lock.packages).filter(([name]) => name.startsWith('node_modules/@deepseek-ai/dsh-'))
+  assert.ok(hostPackages.length > 0)
+  for (const [name, entry] of hostPackages) assert.equal(entry.version, target, `${name} has a stale locked version`)
 })
 
 await suite.run()
