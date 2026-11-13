@@ -16,13 +16,12 @@ import path from 'node:path'
  * per-stream capture with an honest `lossy` flag and a spill file, and signal
  * driven termination.
  */
-export function createSubprocess({ maxBytes = 64_000, spill = true } = {}) {
+export function createSubprocess({ maxBytes = 64_000, spill = true, spawnChild = spawn } = {}) {
   const spillDir = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-bash-spill-'))
   return {
     spillDir,
     spawn({ argv, cwd, stdio, signal, env }) {
-      const child = spawn(argv[0], argv.slice(1), { cwd, env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
-      child.stdin.end(stdio?.stdin?.data ?? '')
+      const child = spawnChild(argv[0], argv.slice(1), { cwd, env, windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] })
       const limit = Math.min(stdio?.stdout?.maxBytes ?? Number.POSITIVE_INFINITY, maxBytes)
       const state = { stdout: { text: '', total: 0, lossy: false, spillPath: undefined }, stderr: { text: '', total: 0, lossy: false, spillPath: undefined } }
       for (const name of ['stdout', 'stderr']) {
@@ -55,7 +54,17 @@ export function createSubprocess({ maxBytes = 64_000, spill = true } = {}) {
       const done = new Promise((resolve, reject) => {
         child.once('error', error => reject(error))
         child.once('close', (code, sig) => resolve({ exitCode: code, signal: sig }))
+        // A child may exit (or be killed) before consuming stdin. EPIPE on POSIX
+        // and EOF on Windows mean its reader closed; keep the actual exit/signal
+        // authoritative. Other input errors remain observable through done.
+        // Install all listeners before end(), including for injected children.
+        child.stdin.on('error', error => {
+          if (error.code !== 'EPIPE' && error.code !== 'EOF') reject(error)
+        })
       })
+      const input = stdio?.stdin?.data
+      if (input === undefined || input === '') child.stdin.end()
+      else child.stdin.end(input)
       const reader = name => ({
         readFrom: offset => ({
           text: state[name].text.slice(offset),
