@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
+import { EventEmitter } from 'node:events'
 import { createHost, createSubprocess } from './lib/host.mjs'
 import { createSuite } from './lib/harness.mjs'
 
@@ -28,6 +29,93 @@ const run = (args, { host = hostFor(), mode = host.state.mode, exec } = {}) => {
   return startSessionBash({ ctx: host.ctx, bash: { file: bash.file, source: bash.source }, active: () => true },
     args, call, policy, policy, {}, {}).result()
 }
+
+// Inject only the process boundary so stdin failures are deterministic on every OS,
+// including hosts without bash. Errors must reach the shim's actual end() call.
+function subprocessWithStdinError(error, { deferred = false } = {}) {
+  const child = new EventEmitter()
+  child.stdin = new EventEmitter()
+  child.stdout = new EventEmitter()
+  child.stderr = new EventEmitter()
+  let endArgs
+  child.stdin.end = (...args) => {
+    endArgs = args
+    const fail = () => child.stdin.emit('error', error)
+    if (deferred) process.nextTick(fail)
+    else fail()
+  }
+  const subprocess = createSubprocess({ spawnChild: () => child })
+  return { subprocess, child, endArgs: () => endArgs }
+}
+
+suite.test('stdin EPIPE/EOF during or after end keeps the real child outcome', async () => {
+  for (const code of ['EPIPE', 'EOF']) {
+    const brokenPipe = Object.assign(new Error(`write ${code}`), { code })
+    for (const deferred of [false, true]) {
+      for (const outcome of [{ exitCode: 0, signal: null }, { exitCode: 7, signal: null }, { exitCode: null, signal: 'SIGTERM' }]) {
+        const { subprocess, child, endArgs } = subprocessWithStdinError(brokenPipe, { deferred })
+        const handle = subprocess.spawn({ argv: ['fake'], stdio: { stdin: { data: '' } } })
+        assert.deepEqual(endArgs(), [], 'empty input must close stdin without writing an empty chunk')
+        let settled = false
+        void handle.done.then(() => { settled = true }, () => { settled = true })
+        await new Promise(resolve => setImmediate(resolve))
+        assert.equal(settled, false, `${code} must not settle the process before close`)
+        child.emit('close', outcome.exitCode, outcome.signal)
+        assert.deepEqual(await handle.done, outcome)
+      }
+    }
+  }
+})
+
+suite.test('unexpected stdin errors reject done rather than disappearing', async () => {
+  const error = Object.assign(new Error('stdin device failed'), { code: 'EIO' })
+  const { subprocess, child, endArgs } = subprocessWithStdinError(error)
+  const handle = subprocess.spawn({ argv: ['fake'], stdio: { stdin: { data: 'input' } } })
+  assert.deepEqual(endArgs(), ['input'])
+  await assert.rejects(handle.done, value => value === error)
+  child.emit('close', 0, null)
+})
+
+suite.test('a spawn failure stays visible even if stdin also reports EPIPE', async () => {
+  const { subprocess, child } = subprocessWithStdinError(Object.assign(new Error('write EPIPE'), { code: 'EPIPE' }))
+  const handle = subprocess.spawn({ argv: ['fake'] })
+  const error = Object.assign(new Error('spawn ENOENT'), { code: 'ENOENT' })
+  child.emit('error', error)
+  await assert.rejects(handle.done, value => value === error)
+  child.emit('close', -2, null)
+})
+
+async function nodeSubprocess(script, input) {
+  const subprocess = createSubprocess()
+  const handle = subprocess.spawn({
+    argv: [process.execPath, '-e', script],
+    stdio: { stdin: { data: input } },
+  })
+  let timedOut = false
+  const timer = setTimeout(() => { timedOut = true; handle.kill() }, 10_000)
+  try {
+    const outcome = await handle.done
+    assert.equal(timedOut, false, 'stdin regression child must settle before the watchdog')
+    return { outcome, stdout: handle.collected.stdout.readFrom(0).text }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+suite.test('a real child that does not read a large stdin still reports its exit', async () => {
+  for (const exitCode of [0, 7]) {
+    const { outcome } = await nodeSubprocess(`process.exit(${exitCode})`, 'x'.repeat(4 * 1024 * 1024))
+    assert.deepEqual(outcome, { exitCode, signal: null })
+  }
+})
+
+suite.test('a real stdin reader receives the exact input and EOF', async () => {
+  for (const input of [undefined, '', 'stdin payload\n']) {
+    const { outcome, stdout } = await nodeSubprocess("process.stdin.pipe(process.stdout)", input)
+    assert.deepEqual(outcome, { exitCode: 0, signal: null })
+    assert.equal(stdout, input ?? '')
+  }
+})
 
 suite.test('stdout, stderr and the exit code are reported separately', { skip: !hasBash }, async () => {
   const value = await run({ command: 'printf out; printf err >&2; exit 3', description: 'streams' })

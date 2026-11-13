@@ -72,7 +72,7 @@ node test/run.mjs mount  # 只跑文件名含 mount 的套件
 | `config` | 默认值、未知键报错、旧 dsh-ops 键、类型/边界 | 13 |
 | `resolution` | 配置 → store → 包内 → PATH/常见路径的优先级、WSL 排除、POSIX 分支、永不抛异常 | 14 |
 | `tool-contract` | `ops_bash` 名称、参数表与执行器一致、输出 schema、`resolve()` 校验矩阵、渲染标记 | 19 |
-| `execution` | 真实命令、关闭的 stdin、`script_path`、workdir、超时杀进程树、取消、截断+spill、诊断、权限断言 | 18 |
+| `execution` | 真实命令、stdin 闭管竞态及 EOF/数据传递、`script_path`、workdir、超时杀进程树、取消、截断+spill、诊断、权限断言 | 23 |
 | `mount` | 真实 `apply()` 挂载：发布/撤销、升级审批拒绝、jobs 参数、`deny-host-shell`、幂等重算 | 17（1 跳过） |
 | `policy` | 公开工具名称检查与旧 API 回退、路由提示词各分支、宿主 shell 拒绝理由 | 12 |
 | `workdir` | Windows/POSIX 锚定规则、`/d/` 映射、跨盘拒绝、UNC、非法输入 | 13 |
@@ -83,6 +83,8 @@ node test/run.mjs mount  # 只跑文件名含 mount 的套件
 历史实测（Windows 11 / Node 24.20 / DSH 0.2.1-rc.3）：`ALL SUITES PASSED: 10/10`，共 144 个用例（1 个按平台跳过）。
 
 0.1.2 适配验证（Windows / Node 24.21 / DSH 0.2.2-rc.3 类型包）：干净的 `npm ci --ignore-scripts`、`npm run verify`（10/10 套件，151 个通过、1 个平台跳过，manifest 38 项检查）、`npm run typecheck` 均通过。另用真实 rc.3 Cordis / ToolsService 验证了按 agent 发布、执行 bash、输出 schema / 渲染及撤销；没有修改当前 profile，也没有验证完整桌面 UI、真实审批或 Windows 受限模式的 IPC 执行。
+
+CI stdin 修复补充了 5 个回归用例：Windows 上 `execution` 23/23，通过完整验证（156 个通过、1 个平台跳过），另连续运行 `execution` 10 次均通过。闭管错误用注入的子进程确定性触发，并用真实 Node 子进程验证不读大输入、正常数据传递及 EOF；修复只涉及测试替身，不改生产执行器。
 
 **真实宿主启动验证**：用一个临时 profile（`dsh <profile> --from-default-profile web`）装上本包后启动 web 应用，
 `--dump-config` 里出现 `# == dsh-bash` → `dsh-bash-shell` 行，启动 stderr 无 `did not activate` 警告，

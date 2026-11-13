@@ -13,6 +13,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Fixed
 
+- The test subprocess shim listens for stdin errors before closing input. A child that exits
+  without reading stdin can report `EPIPE` (or `EOF` on Windows); those closed-reader errors
+  no longer crash the suite, and the child's exit code or signal remains authoritative.
+  Other stdin errors and spawn failures still reject the handle. Empty input closes with
+  `end()` rather than writing an empty chunk.
+- Deterministic stdin regressions cover synchronous/deferred closed-reader errors, real exit
+  and signal preservation, unexpected input errors, spawn failures, a real non-reading child
+  with a large input, and exact payload/EOF delivery to a real reader.
 - The suites no longer encode the host they were written on: the managed bash selection names the
   win32 pin it resolves against (and proves the POSIX refusal with a win32-shaped store present),
   the POSIX remedy case pins the well-known answer instead of accepting either one, and the
