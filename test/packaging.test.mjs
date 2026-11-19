@@ -166,7 +166,7 @@ suite.test('the host version gates admit every supported prerelease', () => {
   assert.equal(ranges[0], ranges[1])
   assert.ok(pkg.peerDependenciesMeta['@deepseek-ai/dsh'].optional)
   for (const range of ranges) {
-    for (const version of ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.2-rc.1', '0.2.2-rc.3']) {
+    for (const version of ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.2-rc.1', '0.2.2-rc.3', '0.2.2-rc.5']) {
       assert.ok(semver.satisfies(version, range, { includePrerelease: true }), `${range} rejects ${version}`)
     }
   }
@@ -181,7 +181,7 @@ suite.test('the host version gates do not admit unverified releases', () => {
 })
 
 suite.test('all host type dependencies and locked packages use the target release', () => {
-  const target = '0.2.2-rc.3'
+  const target = '0.2.2-rc.5'
   const hostDependencies = Object.entries(pkg.devDependencies).filter(([name]) => name.startsWith('@deepseek-ai/dsh-'))
   assert.ok(hostDependencies.length > 0)
   for (const [name, version] of hostDependencies) assert.equal(version, target, `${name} has stale types`)
