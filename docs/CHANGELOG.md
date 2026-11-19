@@ -7,6 +7,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Changed
 
+- Bump the package and community manifest to `0.1.4` and set the same bounded DSH range in
+  `engines.dsh` and the optional DSH peer. Preserve the two supported `0.2.1` release candidates.
+  Runtime smoke tests passed on `0.2.2-rc.1` through `0.2.2-rc.5`. Both retained `0.2.1` candidates
+  also passed basic checks using the older single-call API for scoped publication, foreground Bash
+  execution, and withdrawal in read-only mode without confinement. The range also admits any
+  SemVer-later `0.2.2` prerelease and the final `0.2.2` without direct runtime verification.
+  It excludes `0.2.3` prereleases and later releases. Build-time host types remain pinned to rc.5.
+
 - `resolveShells` takes an optional `probe` for the well-known install locations. Production
   passes none and the real filesystem answers; a caller resolving against a host other than its
   own can name that answer, which is what makes both ends of that rung testable on one machine.

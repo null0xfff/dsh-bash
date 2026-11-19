@@ -1,6 +1,6 @@
 # dsh-bash
 
-0.1.3 新增支持 DSH `0.2.2-rc.5`，保留 `0.2.1-rc.2`、`0.2.1-rc.3`、`0.2.2-rc.1` 和 `0.2.2-rc.3` 的兼容声明。构建类型与锁文件使用 `0.2.2-rc.5`，工具名称检查仍使用公开的 `definitions(scope)`，旧宿主回退到 `schemas(scope)`。兼容范围仅包含这些确切版本，支持的版本无需设置版本豁免。
+0.1.4 的 DSH 兼容范围为 `0.2.1-rc.2 || 0.2.1-rc.3 || >=0.2.2-rc.1 <0.2.3-0`。已实测 `0.2.2-rc.1` 至 `0.2.2-rc.5`。范围也默认允许尚未实测的 `0.2.2` 正式版，以及同补丁线上按 SemVer 排在 `rc.1` 之后的预发布版（不限定预发布标签）。`0.2.3` 的预发布版和正式版均在范围之外。构建类型和锁文件仍使用 `0.2.2-rc.5`。
 
 从 [`T-Auto/dsh-ops`](https://github.com/T-Auto/dsh-ops) **0.4.1**（commit `dfafddc`，MIT）中单独抽出的 **bash 组件**：
 只做一件事——把 `ops_bash` 发布成一个具备宿主管辖（sandbox / 审批 / 输出溢出 / 后台 job）语义的 shell 工具。
@@ -73,12 +73,16 @@ node test/run.mjs mount  # 只跑文件名含 mount 的套件
 | `resolution` | 配置 → store → 包内 → PATH/常见路径的优先级、WSL 排除、POSIX 分支、永不抛异常 | 14 |
 | `tool-contract` | `ops_bash` 名称、参数表与执行器一致、输出 schema、`resolve()` 校验矩阵、渲染标记 | 19 |
 | `execution` | 真实命令、stdin 闭管竞态及 EOF/数据传递、`script_path`、workdir、超时杀进程树、取消、截断+spill、诊断、权限断言 | 23 |
-| `mount` | 真实 `apply()` 挂载：发布/撤销、升级审批拒绝、jobs 参数、`deny-host-shell`、幂等重算 | 17（1 跳过） |
+| `mount` | 真实 `apply()` 挂载：发布/撤销、拒绝缺失或未知的权限及审批、jobs 参数、`deny-host-shell`、幂等重算 | 19（Windows 上另跳过 1 项） |
 | `policy` | 公开工具名称检查与旧 API 回退、路由提示词各分支、宿主 shell 拒绝理由 | 12 |
 | `workdir` | Windows/POSIX 锚定规则、`/d/` 映射、跨盘拒绝、UNC、非法输入 | 13 |
 | `restricted-ipc` | 受限模式门槛、回执校验、私有运行时 PATH、重命名重试、隔离目录 | 11 |
 | `provisioner` | store 回执归属、预览/删除、`selectBashRuntime`、Git 探测 | 13 |
 | `packaging` | manifest/导出/bundle patch/提示词段/图标与语言文件一致性、零宿主值导入、版本门禁及锁文件 | 21 |
+
+0.1.4 在 Windows 上用隔离的 npm 宿主分别验证 `0.2.2-rc.1` 至 `0.2.2-rc.5`，并复跑桌面实装 rc.5。各版本使用真实的 Cordis、工具注册表、原生执行器、子进程和 job 服务，覆盖按 agent 发布和撤销、执行和渲染、后台 job 的所有者隔离。沙箱策略和审批用受控服务验证，覆盖未知或缺失的权限、每次审批和缺少 Windows IPC 回执时拒绝执行。桌面安装、真实审批界面和 Windows 受限模式下成功启动仍待验证。
+
+对保留在兼容范围内的 `0.2.1-rc.2` 和 `0.2.1-rc.3`，也分别使用隔离的 npm 宿主验证了旧版工具单调用接口、按 agent 发布、通过真实子进程执行前台 `printf`，以及切换到只读且宿主未提供 confinement 时撤销工具。这两版的后台 job 和 Windows IPC 执行未纳入此次验证。
 
 历史实测（Windows 11 / Node 24.20 / DSH 0.2.1-rc.3）：`ALL SUITES PASSED: 10/10`，共 144 个用例（1 个按平台跳过）。
 

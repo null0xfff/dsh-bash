@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { createHost, createSubprocess } from './lib/host.mjs'
+import { createHost } from './lib/host.mjs'
 import { createSuite } from './lib/harness.mjs'
 
 const { apply } = await import('../lib/components/shell/index.js')
@@ -24,12 +24,12 @@ const tick = (ms = 150) => new Promise(resolve => setTimeout(resolve, ms))
  */
 async function mount({ config = {}, host: provided, countSpawns = false } = {}) {
   let spawns = 0
-  const subprocess = createSubprocess()
+  const host = provided ?? createHost({ workspaceRoot })
   if (countSpawns) {
-    const original = subprocess.spawn
+    const { subprocess } = host
+    const original = subprocess.spawn.bind(subprocess)
     subprocess.spawn = (...args) => { spawns++; return original(...args) }
   }
-  const host = provided ?? createHost({ workspaceRoot, subprocess })
   apply(host.ctx, config)
   const agent = host.makeAgent({ id: 'session-mount', header: { cwd: workspaceRoot } })
   await host.emit('agent/created', { agent })
@@ -110,6 +110,35 @@ suite.test('an escalation the user refuses never starts a command', { skip: !has
   }, { agent })
   assert.equal(value.status, 'failed')
   assert.match(value.failure.message, /APPROVAL_REJECTED/)
+  assert.equal(spawns(), 0)
+})
+
+suite.test('missing or unknown approval cannot authorize a wider mode', { skip: !hasBash }, async () => {
+  const host = createHost({ workspaceRoot, mode: 'workspace-write', approvalOutcome: 'unknown' })
+  const { definition, agent, spawns } = await mount({ host, countSpawns: true })
+  const args = { command: 'echo x', description: 'escalate', sandbox_permissions: 'danger-full-access', justification: 'needs a system path' }
+  const tool = definition()
+  const unknown = await tool.execute(args, { agent })
+  assert.match(unknown.failure.message, /APPROVAL_UNKNOWN/)
+  host.removeService('approval')
+  const missing = await tool.execute(args, { agent })
+  assert.match(missing.failure.message, /APPROVAL_UNAVAILABLE/)
+  assert.equal(spawns(), 0)
+})
+
+suite.test('a retained definition refuses unknown or missing session authority', { skip: !hasBash }, async () => {
+  const { host, definition, agent, spawns } = await mount({ countSpawns: true })
+  const tool = definition()
+  const args = { command: 'echo x', description: 'test retained tool' }
+  host.setMode('unknown')
+  const unknown = await tool.execute(args, { agent })
+  assert.match(unknown.failure.message, /authoritative session policy is unavailable/)
+  await host.emit('session/event', agent.session, { type: 'sandbox/mode' })
+  await tick()
+  assert.equal(definition(), undefined)
+  host.removeService('sandboxPolicy')
+  const missing = await tool.execute(args, { agent })
+  assert.match(missing.failure.message, /authoritative session policy is unavailable/)
   assert.equal(spawns(), 0)
 })
 

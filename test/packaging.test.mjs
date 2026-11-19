@@ -161,20 +161,25 @@ suite.test('the provisioner script verifies both digests before installing', () 
   assert.match(script, /schemaVersion: 1/)
 })
 
-suite.test('the host version gates admit every supported prerelease', () => {
+suite.test('the host and optional peer gates admit the verified and future 0.2.2 versions within bounds', () => {
   const ranges = [pkg.engines.dsh, pkg.peerDependencies['@deepseek-ai/dsh']]
   assert.equal(ranges[0], ranges[1])
   assert.ok(pkg.peerDependenciesMeta['@deepseek-ai/dsh'].optional)
+  const supported = ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.2-rc.1', '0.2.2-rc.2', '0.2.2-rc.3', '0.2.2-rc.4', '0.2.2-rc.5']
+  const future = ['0.2.2-rc.6', '0.2.2-rc.6.1', '0.2.2-rc.10', '0.2.2-rtm.1', '0.2.2']
   for (const range of ranges) {
-    for (const version of ['0.2.1-rc.2', '0.2.1-rc.3', '0.2.2-rc.1', '0.2.2-rc.3', '0.2.2-rc.5']) {
+    for (const version of [...supported, ...future]) {
       assert.ok(semver.satisfies(version, range, { includePrerelease: true }), `${range} rejects ${version}`)
+      assert.ok(semver.satisfies(version, range), `normal peer semver rejects ${version}`)
     }
   }
 })
 
-suite.test('the host version gates do not admit unverified releases', () => {
+suite.test('the version gates enforce the lower bound and exclude the next patch and minor', () => {
+  const excluded = ['0.2.0', '0.2.1-rc.1', '0.2.1-rc.4', '0.2.1', '0.2.2-beta.9', '0.2.2-rc.0',
+    '0.2.3-0', '0.2.3-alpha.0', '0.2.3-rc.1', '0.2.3', '0.3.0-alpha.0', '0.3.0']
   for (const range of [pkg.engines.dsh, pkg.peerDependencies['@deepseek-ai/dsh']]) {
-    for (const version of ['0.2.0', '0.2.1', '0.2.2-rc.2', '0.2.2-rc.4', '0.2.2', '0.2.3-rc.1', '0.3.0']) {
+    for (const version of excluded) {
       assert.equal(semver.satisfies(version, range, { includePrerelease: true }), false, `${range} admits ${version}`)
     }
   }
