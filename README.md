@@ -1,203 +1,109 @@
 # dsh-bash
 
-0.1.4 的 DSH 兼容范围为 `0.2.1-rc.2 || 0.2.1-rc.3 || >=0.2.2-rc.1 <0.2.3-0`。已实测 `0.2.2-rc.1` 至 `0.2.2-rc.5`。范围也默认允许尚未实测的 `0.2.2` 正式版，以及同补丁线上按 SemVer 排在 `rc.1` 之后的预发布版（不限定预发布标签）。`0.2.3` 的预发布版和正式版均在范围之外。构建类型和锁文件仍使用 `0.2.2-rc.5`。
+简体中文 | [English](./README.en.md)
 
-从 [`T-Auto/dsh-ops`](https://github.com/T-Auto/dsh-ops) **0.4.1**（commit `dfafddc`，MIT）中单独抽出的 **bash 组件**：
-只做一件事——把 `ops_bash` 发布成一个具备宿主管辖（sandbox / 审批 / 输出溢出 / 后台 job）语义的 shell 工具。
-file / PTC / discovery / panel / TUI / hide-official 这六条组件行全部没有移植。
+`dsh-bash` 将 [T-Auto/dsh-ops](https://github.com/T-Auto/dsh-ops) 中的 Bash 组件独立出来，为 DeepSeek Harness（DSH）Agent 提供 `ops_bash` 工具。如果你需要在仓库中运行 Bash 命令或脚本，并沿用 DSH 本身的会话权限、沙箱与审批流程，同时默认保留宿主自带的 Bash 和 PowerShell 工具，可以使用这个插件。
 
-- 不导入任何 `@deepseek-ai/*` 的**运行时值**（只有类型导入），加载期不会因为宿主包缺失而失败。
-- 只通过 `ctx.get('subprocess') / ctx.get('sandboxPolicy') / ctx.get('sandbox') / ctx.get('jobs')` 借用宿主服务。
-- 与宿主原生 `bash` 工具的差别：多一个 `script_path` 参数、更严格的参数校验、`failure.code/effectState/retry` 结构化失败信息。
-- 标准 DSH 插件形态：`dsh-plugin.json`（manifest v0.15）+ `dsh.bundle.patch` 行 + `./shell` 组件导出 +
-  根级图标与 `locale/{en,zh}.json`，`npm run validate:manifest` 用官方 `@dsh-std/manifest` 解析器过一遍。
+## 安装插件
 
-## 二次开发来源标注
+1. 在目标 DSH 应用中打开 **插件 → 添加插件**。
+2. 选择 Git 来源，填入：
 
-| 项 | 内容 |
-| --- | --- |
-| 上游项目 | [`T-Auto/dsh-ops`](https://github.com/T-Auto/dsh-ops) |
-| 上游版本 / 提交 | `0.4.1` / `dfafddc`（Merge PR #403） |
-| 上游许可 | MIT，Copyright (c) 2026 T-Auto and the dsh-ops contributors |
-| 上游许可原文 | `licenses/dsh-ops-LICENSE`（原样保留） |
-| 间接上游 | `@deepseek-ai/dsh-tool-bash` 0.2.0-rc.2（MIT，Copyright (c) 2026 DeepSeek），经 dsh-ops 转承；原文见 `licenses/deepseek-harness/LICENSE` |
-| 逐文件对应关系与全部改动 | [`docs/PROVENANCE.md`](docs/PROVENANCE.md) |
-| 第三方声明 | [`NOTICE`](NOTICE) |
-
-本项目是**二次开发**而非上游发布物：包名、配置段、`DSH_HOME` 子目录、运维命令都改为 `dsh-bash`；
-仅保留 bash 一条组件行；不管理 PowerShell；组件入口不导出 `Config`（见 PROVENANCE 的说明）。
-上游原有的版权与许可声明全部保留，未替换。
-
-## 目录
-
-```
-dsh-plugin.json              DSH manifest v0.15（host facet / Tool 契约 / 权限 / 组件与提示词声明）
-cordis.patch.yml             唯一一行 dsh-bash-shell
-locale/, docs/assets/        插件卡片用的语言文件与图标
-src/index.ts                 组件入口：解析 bash → 发布工具 → 提示词段 → 可选禁用宿主 shell
-src/components/shell/        Loader 行入口（dsh-bash/shell）
-src/config.ts                行配置校验（未知键报错）
-src/policy.ts                工具名 / 路由提示词（只描述 ops_bash 与宿主的 pwsh）
-src/shells.ts + src/shells/  解析、探测、执行、结果渲染、job、宿主契约（原样移植）
-src/session-shells.ts        按 agent/session 维度发布与撤销，跟随 sandboxPolicy 变化
-src/shells/session-execution 每次调用的权限断言 + 受限模式 confinement 接线
-src/bash-ipc.ts              Windows 受限模式的私有 MSYS 运行时缓存与校验
-src/bash-pe.ts               MSYS DLL 补丁（把 KERNEL32/NTDLL 导入重定向到 IPC 代理）
-src/workspace-preparation.ts Windows workspace ACL 前置（WRITE_OWNER）
-src/workspace-preparation.ts → bin/prepare-workspace.ps1
-scripts/provision-bash.mjs   安装固定版本的上游 bash（Git for Windows PortableGit）
-scripts/build-bash-ipc.mjs   构建 Windows 受限模式所需 IPC 代理（需要 MSVC）
-scripts/validate-manifest.mjs 官方 manifest 解析器 + 本仓库事实一致性检查
-scripts/verify-install.mjs   检查某个 profile 里的安装状态
-bin/dsh-bash.mjs             status / provision / build-ipc 运维命令
-test/                        10 个套件（见下表）
-.github/workflows/ci.yml     ubuntu 上 build + lib 同步 + manifest + 套件 + 类型检查
+```text
+github:null0xfff/dsh-bash
 ```
 
-## 构建与验证
+仓库已包含编译产物（`lib/`），从 Git 安装无需本地编译 TypeScript。安装并启用插件后，如果使用 Windows，请继续完成下方的 Bash 运行时准备。
 
-```powershell
-npm install --ignore-scripts
-npm run build            # src/ -> lib/（lib/ 已提交，供 git 安装直接用）
-npm run validate:manifest
-npm test                 # build + 全部 10 个套件
-npm run verify           # build + manifest + 套件
-node test/run.mjs mount  # 只跑文件名含 mount 的套件
+## 准备 Bash 运行时
+
+安装插件与准备 Bash 是两个独立步骤：
+
+- **Linux / macOS**：默认直接解析系统中的 Bash，通常无需额外下载。
+- **Windows x64**：默认使用固定版本的 Git for Windows PortableGit `2.56.0.2`，需要单独下载并校验载荷。
+
+在 Windows x64 上，从插件包根目录运行以下命令，下载载荷并查看状态。
+
+```sh
+node bin/dsh-bash.mjs provision
+node bin/dsh-bash.mjs status
 ```
 
-测试套件（一个进程一个套件，`test/lib/harness.mjs` 汇总，`test/lib/host.mjs` 提供 Cordis 形态的宿主替身）：
+- `provision` 会下载并校验固定版本的 PortableGit 载荷（存入 `<DSH_HOME>/dsh-bash/shells`）。
+- `status` 会按默认配置报告当前找到的 Bash 路径以及受限模式兼容性。
 
-| 套件 | 覆盖 | 用例 |
-| --- | --- | --- |
-| `config` | 默认值、未知键报错、旧 dsh-ops 键、类型/边界 | 13 |
-| `resolution` | 配置 → store → 包内 → PATH/常见路径的优先级、WSL 排除、POSIX 分支、永不抛异常 | 14 |
-| `tool-contract` | `ops_bash` 名称、参数表与执行器一致、输出 schema、`resolve()` 校验矩阵、渲染标记 | 19 |
-| `execution` | 真实命令、stdin 闭管竞态及 EOF/数据传递、`script_path`、workdir、超时杀进程树、取消、截断+spill、诊断、权限断言 | 23 |
-| `mount` | 真实 `apply()` 挂载：发布/撤销、拒绝缺失或未知的权限及审批、jobs 参数、`deny-host-shell`、幂等重算 | 19（Windows 上另跳过 1 项） |
-| `policy` | 公开工具名称检查与旧 API 回退、路由提示词各分支、宿主 shell 拒绝理由 | 12 |
-| `workdir` | Windows/POSIX 锚定规则、`/d/` 映射、跨盘拒绝、UNC、非法输入 | 13 |
-| `restricted-ipc` | 受限模式门槛、回执校验、私有运行时 PATH、重命名重试、隔离目录 | 11 |
-| `provisioner` | store 回执归属、预览/删除、`selectBashRuntime`、Git 探测 | 13 |
-| `packaging` | manifest/导出/bundle patch/提示词段/图标与语言文件一致性、零宿主值导入、版本门禁及锁文件 | 21 |
+### Windows 受限模式（`read-only` / `workspace-write`）
 
-0.1.4 在 Windows 上用隔离的 npm 宿主分别验证 `0.2.2-rc.1` 至 `0.2.2-rc.5`，并复跑桌面实装 rc.5。各版本使用真实的 Cordis、工具注册表、原生执行器、子进程和 job 服务，覆盖按 agent 发布和撤销、执行和渲染、后台 job 的所有者隔离。沙箱策略和审批用受控服务验证，覆盖未知或缺失的权限、每次审批和缺少 Windows IPC 回执时拒绝执行。桌面安装、真实审批界面和 Windows 受限模式下成功启动仍待验证。
+在 `danger-full-access` 下，任何已解析到的 Bash 都可以运行；但在 Windows 上启用 `read-only` 或 `workspace-write` 受限模式，还需要与当前载荷匹配的 MSYS IPC 组件与校验记录。缺少匹配组件时，受限执行会被明确拒绝，不会静默退化为不受限执行。
 
-对保留在兼容范围内的 `0.2.1-rc.2` 和 `0.2.1-rc.3`，也分别使用隔离的 npm 宿主验证了旧版工具单调用接口、按 agent 发布、通过真实子进程执行前台 `printf`，以及切换到只读且宿主未提供 confinement 时撤销工具。这两版的后台 job 和 Windows IPC 执行未纳入此次验证。
+因此，运行 `node bin/dsh-bash.mjs status` 后可能会看到如下两行：
 
-历史实测（Windows 11 / Node 24.20 / DSH 0.2.1-rc.3）：`ALL SUITES PASSED: 10/10`，共 144 个用例（1 个按平台跳过）。
+- `bash: available`：已找到可用 Bash，可以在 `danger-full-access` 下执行命令。
+- `restricted modes: unavailable`：当前插件包缺少匹配的 MSYS IPC 组件，受限模式（`read-only` / `workspace-write`）不可用。
 
-0.1.2 适配验证（Windows / Node 24.21 / DSH 0.2.2-rc.3 类型包）：干净的 `npm ci --ignore-scripts`、`npm run verify`（10/10 套件，151 个通过、1 个平台跳过，manifest 38 项检查）、`npm run typecheck` 均通过。另用真实 rc.3 Cordis / ToolsService 验证了按 agent 发布、执行 bash、输出 schema / 渲染及撤销；没有修改当前 profile，也没有验证完整桌面 UI、真实审批或 Windows 受限模式的 IPC 执行。
-
-CI stdin 修复补充了 5 个回归用例：Windows 上 `execution` 23/23，通过完整验证（156 个通过、1 个平台跳过），另连续运行 `execution` 10 次均通过。闭管错误用注入的子进程确定性触发，并用真实 Node 子进程验证不读大输入、正常数据传递及 EOF；修复只涉及测试替身，不改生产执行器。
-
-**真实宿主启动验证**：用一个临时 profile（`dsh <profile> --from-default-profile web`）装上本包后启动 web 应用，
-`--dump-config` 里出现 `# == dsh-bash` → `dsh-bash-shell` 行，启动 stderr 无 `did not activate` 警告，
-说明 Loader 能解析 bundle patch 并成功激活该行。
-
-> 移植经验（踩过的坑）：组件行入口**不能**导出一个普通函数当 `Config`。Loader 会把它当
-> schemastery schema 调 `.validate`，直接报 `Cannot read properties of undefined (reading 'validate')`
-> 并让整行激活失败。校验放在 `apply()` 里，未知键仍然报错。
-
-## 安装 bash 载荷
-
-Windows 本身没有 POSIX bash，dsh-ops 的做法是钉住上游发行版并校验摘要。这个包保留了同一套机制：
-
-```powershell
-node bin/dsh-bash.mjs provision     # 下载并校验 PortableGit 2.56.0.2 -> %USERPROFILE%\.dsh\dsh-bash\shells\bash\2.56.0.2
-node bin/dsh-bash.mjs status        # 当前会跑哪个 bash、来源、受限模式兼容性
-```
-
-解析顺序（`src/shells/resolve.ts`）：
-
-1. 配置里的 `bashPath`（不可用就报错，不会偷偷换一个 shell）
-2. `<DSH_HOME>/dsh-bash/shells/bash/<version>/bin/bash.exe`
-3. 包内 `vendor/bash/<platform>-<arch>/` 或 `@dsh-bash/bash-<platform>-<arch>` 平台包
-4. `allowSystemShellFallback: true` 时才查 `PATH` 与常见安装位置（Windows 会主动排除 WSL 的 `System32\bash.exe`）
-
-POSIX 上直接用发行版自带的 bash（同样支持 `bashPath` 覆盖）。
-
-## 受限模式（read-only / workspace-write）
-
-`danger-full-access` 下任意被解析到的 bash 都能跑。受限模式在 Windows 上只跑**固定版本的 MSYS**：
-`runtime/win32-x64/bash-ipc/provenance.json` 必须存在，`msys-2.0.dll` 的摘要必须与回执一致，
-两个 IPC 代理 DLL 会被逐字节校验后复制进 `<DSH_HOME>/dsh-bash/bash-ipc/<identity>/`。
-
-构建这套代理需要 VS C++ 工具链：
+如需在 Windows x64 上启用受限模式，请在安装好 Visual Studio C++ 工具链后，**针对 DSH 实际加载的那份插件包目录**运行 `build-ipc`（必要时先设置 `DSH_OPS_VCVARS64` 指向 `vcvars64.bat`）：
 
 ```powershell
 $env:DSH_OPS_VCVARS64 = "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
 node bin/dsh-bash.mjs build-ipc
 ```
 
-没有回执时受限模式会明确拒绝并给出修复路径（本机就是这样：无 MSVC，`status` 显示
-`restricted modes: unavailable`），不会退化为不受限执行。
+完成后重新运行 `node bin/dsh-bash.mjs status` 确认状态。
 
-## 配置
+## 首次使用
 
-`cordis.patch.yml` 里的 `dsh-bash-shell` 行：
+配置就绪并重载或重启 DSH 应用后，向 Agent 发送以下消息：
 
-| 键 | 默认 | 说明 |
+```text
+用 ops_bash 运行 `printf 'hello from bash\n'`
+```
+
+预期输出：
+
+```text
+hello from bash
+```
+
+### 运行机制与参数说明
+
+- 每次调用 `ops_bash` 都会启动一个新的 shell 进程。
+- 单次调用在 `command`（内联命令）和 `script_path`（脚本路径）中二选一，可选通过 `workdir` 指定工作目录。
+- 后台任务（background jobs）能力取决于宿主是否提供相应的 job 服务和控制器。
+
+## 常用配置
+
+插件通过 [`cordis.patch.yml`](./cordis.patch.yml) 向 profile 注入 `dsh-bash-shell` 组件行，常用配置项如下：
+
+| 配置项 | 默认值 | 说明 |
 | --- | --- | --- |
-| `bashPath` | — | 绝对路径；设置后以它为准，不可用即报错 |
-| `publishBashTool` | `true` | 是否发布 `ops_bash` |
-| `shellPolicy` | `advise` | `deny-host-shell` 会隐藏并拒绝宿主 `bash`/`pwsh`/`pwsh_persistent` |
-| `deniedHostTools` | 上述三个 | `deny-host-shell` 的拒绝清单 |
-| `promptPolicy` | `true` | 是否发布 shell 路由提示词段 |
-| `extraGuidance` | `""` | 追加到提示词段的说明 |
-| `allowSystemShellFallback` | `false` | 是否允许回落到系统 bash（仅 Windows 需要显式打开） |
+| `bashPath` | 未设置 | 指定 Bash 可执行文件的绝对路径；设置后以该路径为准，不可用时直接报错。 |
+| `allowSystemShellFallback` | `false` | 控制 Windows 下找不到托管载荷时，是否允许回落查找系统 Bash。 |
+| `publishBashTool` | `true` | 是否向 Agent 发布 `ops_bash` 工具。 |
+| `shellPolicy` | `"advise"` | 默认保留宿主 Shell 工具；设为 `"deny-host-shell"` 时会隐藏并拒绝宿主的 `bash`、`pwsh` 与 `pwsh_persistent`。 |
 
-`serverName` / `enableShellTools` / `toolCallTimeoutMs` 是 dsh-ops 旧行遗留键：接受并忽略，便于直接从 dsh-ops 行复制配置。
+完整配置字段与校验规则见 [`src/config.ts`](./src/config.ts) 与 [`cordis.patch.yml`](./cordis.patch.yml)。
 
-## 安装
+## 兼容范围与开发验证
 
-仓库地址：<https://github.com/null0xfff/dsh-bash>。`lib/` 已随仓库提交，所以从 git 安装不需要本地 TypeScript。
+- **当前版本**：`0.1.4`
+- **Node.js**：`^22.19 || >=24`
+- **DSH 兼容范围**：`0.2.1-rc.2 || 0.2.1-rc.3 || >=0.2.2-rc.1 <0.2.3-0`
+  - **已实测**：`0.2.2-rc.1` 至 `0.2.2-rc.5` 均已使用实际宿主组件验证执行、任务与权限边界；`0.2.1-rc.2` 与 `0.2.1-rc.3` 已验证按 Agent 发布、前台执行，以及切换为只读且无沙箱时撤销工具。
+  - **版本策略**：同一 `0.2.2` 线的后续 RC 与正式版按语义化版本范围准入；`0.2.3` 从预发布版起需要重新验收。
 
-```powershell
-# 桌面端必须用应用自带的 CLI
-& "<安装目录>\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add github:null0xfff/dsh-bash
-# 或者用 npm 包（发布后）
-& "<安装目录>\resources\runtime\cli\bin\dsh.cmd" plugin --profile desktop add dsh-bash
+开发者可在仓库根目录运行以下命令进行验证：
+
+```sh
+npm ci --ignore-scripts
+npm run verify
+npm run typecheck
 ```
-
-安装后装一次钉住的 bash 载荷，然后重启应用（或让插件管理器重载 profile）：
-
-```powershell
-node bin/dsh-bash.mjs provision
-node bin/dsh-bash.mjs status
-```
-
-### 本机现状
-
-本机 `dsh plugin ... add` 被**无关依赖**挡住：`dsh-purge` 的 GitHub 归档摘要与 lockfile 不一致
-（`ERR_PNPM_TARBALL_INTEGRITY`），pnpm 拒绝继续，与本插件无关。等价的手工安装步骤：
-
-1. 把包内容解到 `<DSH_HOME>\profiles\desktop\node_modules\dsh-bash`；
-2. profile `package.json` 的依赖写 `"dsh-bash": "github:null0xfff/dsh-bash"`（本机已如此）；
-3. `"dsh-bash"` 出现在 `dsh.profile.bundles`；
-4. 重启应用——`ops_bash` 才会出现在工具表里。
-
-上述 git 安装路径已在临时 profile 上实测通过：`dsh plugin --profile <new> add github:null0xfff/dsh-bash`
-装好后启动 web 应用，stderr 无激活警告，行 `dsh-bash-shell` 正常挂载。
-
-安装状态可随时自检（只读，不启动应用）：
-
-```powershell
-node scripts/verify-install.mjs desktop
-# package/dependency/bundle row/bash/source/restricted 六项，附结论
-```
-
-修好 `dsh-purge` 的摘要问题后，标准命令即可原样接管这套依赖与 bundles 配置。
-
-## 与 dsh-ops 的行为差异
-
-- 包名、配置段名、`DSH_HOME` 子目录都是 `dsh-bash`，与 dsh-ops 并存不冲突（互不读取对方的 store）。
-- 不再提供 pwsh 托管：宿主的 PowerShell 保持原样，只有提示词里提到它。
-- 不再有 file 工具的凭据围栏、结果引用、PTC SDK；因此 `ctx.get('result')` 之类服务完全不需要。
-- 提示词段只描述 `ops_bash` 与宿主 `pwsh`，不再包含 `ops_*` 文件工具表格。
 
 ## 许可与来源
 
-- 本项目为 **二次开发**：移植自 **dsh-ops** 0.4.1 / commit `dfafddc`（MIT，Copyright (c) 2026 T-Auto and the dsh-ops contributors），原文见 `licenses/dsh-ops-LICENSE`；逐文件对应与改动见 [`docs/PROVENANCE.md`](docs/PROVENANCE.md)。
-- `src/shells/host-tool.ts`、`src/shells/host-contract.ts`、`src/shells/approval.ts` 另改编自 `@deepseek-ai/dsh-tool-bash` 0.2.0-rc.2（MIT，Copyright (c) 2026 DeepSeek），原文见 `licenses/deepseek-harness/LICENSE`。
-- 本仓库 `LICENSE` 保留上述版权行，第三方声明汇总在 [`NOTICE`](NOTICE)。
-- Windows bash 载荷来自 Git for Windows（GPL-2.0 等组件），仅按 dsh-ops 的钉住版本与摘要下载，不随包分发；`native/bash-ipc/*.cpp` 为 dsh-ops 原创 MIT 代码。
+本项目基于 MIT 许可发布，详情见 [`LICENSE`](./LICENSE) 与 [`NOTICE`](./NOTICE)：
+
+- **直接上游**：[T-Auto/dsh-ops](https://github.com/T-Auto/dsh-ops) `0.4.1`（提交 `dfafddc`，MIT 许可），许可原文保留在 [`licenses/dsh-ops-LICENSE`](./licenses/dsh-ops-LICENSE)。
+- **间接上游**：部分工具契约经 `dsh-ops` 改编自 `@deepseek-ai/dsh-tool-bash` `0.2.0-rc.2`（MIT 许可），许可原文保留在 [`licenses/deepseek-harness/LICENSE`](./licenses/deepseek-harness/LICENSE)。
+- **逐文件溯源与改动说明**：见 [`docs/PROVENANCE.md`](./docs/PROVENANCE.md)。
+- **Windows Bash 载荷**：由 `node bin/dsh-bash.mjs provision` 单独从上游下载（Git for Windows PortableGit `2.56.0.2`），适用其上游许可证（包含 GPL-2.0 等组件），不随本仓库直接分发。
