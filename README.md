@@ -20,7 +20,7 @@ github:null0xfff/dsh-bash
 安装插件与准备 Bash 是两个独立步骤：
 
 - **Linux / macOS**：默认直接解析系统中的 Bash，通常无需额外下载。
-- **Windows x64**：默认使用固定版本的 Git for Windows PortableGit `2.56.0.2`，需要单独下载并校验载荷。
+- **Windows x64**：默认使用固定版本的 Git for Windows PortableGit `2.56.1`，需要单独下载并校验载荷。
 
 在 Windows x64 上，从插件包根目录运行以下命令，下载载荷并查看状态。
 
@@ -106,4 +106,4 @@ npm run typecheck
 - **直接上游**：[T-Auto/dsh-ops](https://github.com/T-Auto/dsh-ops) `0.4.1`（提交 `dfafddc`，MIT 许可），许可原文保留在 [`licenses/dsh-ops-LICENSE`](./licenses/dsh-ops-LICENSE)。
 - **间接上游**：部分工具契约经 `dsh-ops` 改编自 `@deepseek-ai/dsh-tool-bash` `0.2.0-rc.2`（MIT 许可），许可原文保留在 [`licenses/deepseek-harness/LICENSE`](./licenses/deepseek-harness/LICENSE)。
 - **逐文件溯源与改动说明**：见 [`docs/PROVENANCE.md`](./docs/PROVENANCE.md)。
-- **Windows Bash 载荷**：由 `node bin/dsh-bash.mjs provision` 单独从上游下载（Git for Windows PortableGit `2.56.0.2`），适用其上游许可证（包含 GPL-2.0 等组件），不随本仓库直接分发。
+- **Windows Bash 载荷**：由 `node bin/dsh-bash.mjs provision` 单独从上游下载（Git for Windows PortableGit `2.56.1`），适用其上游许可证（包含 GPL-2.0 等组件），不随本仓库直接分发。

@@ -20,7 +20,7 @@ The repository includes pre-built output (`lib/`), so installing from Git does n
 Installing the plugin and preparing Bash are two separate steps:
 
 - **Linux / macOS**: Uses the system Bash by default and normally requires no extra download.
-- **Windows x64**: Uses a pinned Git for Windows PortableGit `2.56.0.2` runtime by default, which must be downloaded and verified separately.
+- **Windows x64**: Uses a pinned Git for Windows PortableGit `2.56.1` runtime by default, which must be downloaded and verified separately.
 
 On Windows x64, run these commands from the plugin package root to download PortableGit and check its status.
 
@@ -106,4 +106,4 @@ Licensed under the MIT License; see [`LICENSE`](./LICENSE) and [`NOTICE`](./NOTI
 - **Direct upstream**: [T-Auto/dsh-ops](https://github.com/T-Auto/dsh-ops) `0.4.1` (commit `dfafddc`, MIT), license text preserved in [`licenses/dsh-ops-LICENSE`](./licenses/dsh-ops-LICENSE).
 - **Transitive upstream**: Parts of the tool contract were adapted via `dsh-ops` from `@deepseek-ai/dsh-tool-bash` `0.2.0-rc.2` (MIT), license text preserved in [`licenses/deepseek-harness/LICENSE`](./licenses/deepseek-harness/LICENSE).
 - **File-level mapping and changes**: See [`docs/PROVENANCE.md`](./docs/PROVENANCE.md).
-- **Windows Bash payload**: Downloaded separately by `node bin/dsh-bash.mjs provision` (Git for Windows PortableGit `2.56.0.2`), not bundled with this repository, and governed by its upstream licenses (including GPL-2.0).
+- **Windows Bash payload**: Downloaded separately by `node bin/dsh-bash.mjs provision` (Git for Windows PortableGit `2.56.1`), not bundled with this repository, and governed by its upstream licenses (including GPL-2.0).
