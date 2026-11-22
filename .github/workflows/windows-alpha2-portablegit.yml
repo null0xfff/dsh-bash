@@ -1,0 +1,65 @@
+name: Isolated Windows alpha.2 PortableGit smoke
+
+on:
+  push:
+    branches:
+      - qa/windows-alpha2-portablegit-20261122
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: github.repository == 'null0xfff/dsh-bash' && github.ref == 'refs/heads/qa/windows-alpha2-portablegit-20261122'
+    runs-on: windows-2025
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      DSH_TELEMETRY_DISABLED: '1'
+      npm_config_registry: https://registry.npmjs.org/
+      npm_config_audit: 'false'
+      npm_config_fund: 'false'
+    steps:
+      - name: Check out the isolated workflow
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Check out exact PR source separately
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: null0xfff/dsh-bash
+          ref: aab9e12217784b8074c09100b5692130f29dd62c
+          path: qa-source
+          persist-credentials: false
+      - name: Set up exact x64 Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24.22.3
+          architecture: x64
+      - name: Prepare exact stock host and declaration-only tarball
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $PSNativeCommandUseErrorActionPreference = $true
+          $qa = Join-Path $env:RUNNER_TEMP 'dsh-alpha2-qa'
+          New-Item -Type Directory -Path $qa | Out-Null
+          foreach ($dir in @('host','packs','home','work','npm-cache')) {
+            New-Item -Type Directory -Path (Join-Path $qa $dir) | Out-Null
+          }
+          $env:npm_config_cache = Join-Path $qa 'npm-cache'
+          $candidate = Join-Path $env:GITHUB_WORKSPACE 'qa-source'
+          if ((git -C $candidate rev-parse HEAD) -ne 'aab9e12217784b8074c09100b5692130f29dd62c') { throw 'Unexpected candidate revision' }
+          node .github/qa/windows-alpha2.mjs declare $candidate
+          if ((git -C $candidate status --porcelain).Trim() -ne 'M package.json') { throw 'Unexpected candidate source changes' }
+          Push-Location $candidate
+          try { npm pack --ignore-scripts --pack-destination (Join-Path $qa 'packs') }
+          finally { Pop-Location }
+          Push-Location (Join-Path $qa 'host')
+          try {
+            npm init --yes
+            npm install --save-exact --ignore-scripts '@deepseek-ai/dsh@0.2.3-alpha.2' 'pnpm@11.7.0'
+          } finally { Pop-Location }
+          "DSH_ALPHA2_QA=$qa" >> $env:GITHUB_ENV
+      - name: Verify provision, native IPC, and confined host execution
+        run: node .github/qa/windows-alpha2.mjs run $env:DSH_ALPHA2_QA
