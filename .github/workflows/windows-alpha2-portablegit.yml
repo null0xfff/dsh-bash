@@ -47,6 +47,18 @@ jobs:
           foreach ($dir in @('host','packs','home','work','npm-cache')) {
             New-Item -Type Directory -Path (Join-Path $qa $dir) | Out-Null
           }
+          # Hosted Windows can assign Administrators as default owner.
+          # Meet DSH's ownership precondition on this empty, disposable fixture only.
+          $work = Join-Path $qa 'work'
+          $userSid = ([System.Security.Principal.WindowsIdentity]::GetCurrent()).User
+          $originalOwner = (Get-Acl -LiteralPath $work).GetOwner([System.Security.Principal.SecurityIdentifier]).Value
+          if ($originalOwner -ne $userSid.Value) {
+            & icacls.exe $work /setowner "*$($userSid.Value)"
+          }
+          if ((Get-Acl -LiteralPath $work).GetOwner([System.Security.Principal.SecurityIdentifier]).Value -ne $userSid.Value) {
+            throw 'Disposable test workspace must be owned by the runner identity'
+          }
+          Write-Host 'Verified disposable workspace owner equals runner user SID'
           $env:npm_config_cache = Join-Path $qa 'npm-cache'
           $candidate = Join-Path $env:GITHUB_WORKSPACE 'qa-source'
           if ((git -C $candidate rev-parse HEAD) -ne 'aab9e12217784b8074c09100b5692130f29dd62c') { throw 'Unexpected candidate revision' }
