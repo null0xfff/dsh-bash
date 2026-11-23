@@ -1,5 +1,7 @@
 /** Windows confined-mode gate: what is verified, and what is refused. */
 import assert from 'node:assert/strict'
+import { execFileSync } from 'node:child_process'
+import { prepareWorkspace } from '../lib/workspace-preparation.js'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -12,6 +14,14 @@ const {
 const suite = createSuite('restricted-ipc')
 
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'dsh-bash-ipc-'))
+
+suite.test('restricted Windows calls reject a writable Everyone ACE before starting Bash', { skip: process.platform !== 'win32' }, async () => {
+  const root = fs.mkdtempSync(path.join(scratch, 'acl-'))
+  execFileSync('icacls.exe', [root, '/grant', '*S-1-1-0:(OI)(CI)W'], { windowsHide: true })
+  for (const mode of ['workspace-write', 'read-only']) {
+    await assert.rejects(prepareWorkspace({ workspaceRoot: root, mode }), /UNSAFE_WORKSPACE_ACL/)
+  }
+})
 
 suite.test('a POSIX host needs no MSYS compatibility layer', () => {
   const check = restrictedCompatibility('/bin/bash', { platform: 'linux' })
@@ -136,5 +146,4 @@ suite.test('quarantineGeneration renames aside and keeps two generations', () =>
   assert.equal(remaining.length, 2)
 })
 
-fs.rmSync(scratch, { recursive: true, force: true })
-await suite.run()
+try { await suite.run() } finally { fs.rmSync(scratch, { recursive: true, force: true }) }

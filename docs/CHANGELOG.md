@@ -5,6 +5,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+- Prepare `0.1.5` for DSH `0.2.3-alpha.2` and retain the existing `0.2.1` and `0.2.2` ranges.
+- Resolve Bash working directories through the calling agent's working-directory service on each call. Recheck the session directory and sandbox grants before spawning.
+- Refuse restricted Windows Bash on workspace roots that grant write access to Everyone or the current logon SID.
+
+## [0.1.4]
+
 ### Changed
 
 - Bump the package and community manifest to `0.1.4` and set the same bounded DSH range in

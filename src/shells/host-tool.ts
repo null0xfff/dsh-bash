@@ -15,7 +15,7 @@ import { bashPresentationMeta, presentBashCall, presentBashResult } from './pres
 export const HOST_MAX_BASH_TIMEOUT_MS = 600_000
 
 export function hostBashDefinition(ctx: ShellContext, base: ShellBase, createExecution: CreateShellExecution,
-  resolveWorkdir: (args: Record<string, unknown>, session: NonNullable<ShellCall['agent']>['session'] | undefined) => unknown,
+  resolveWorkdir: (args: Record<string, unknown>, cwd: string | undefined) => unknown,
   jobs?: ShellJobs): HostShellDefinition {
   // The registry arrives already bound by the component (`ctx.inject(['jobs'], …)`), exactly as the
   // host's own bash tool does it. Re-reading a tracked service at call time returns a fresh traceable
@@ -55,11 +55,13 @@ export function hostBashDefinition(ctx: ShellContext, base: ShellBase, createExe
         if (local.timeoutMs !== undefined && (typeof local.timeoutMs !== 'number' || !Number.isFinite(local.timeoutMs) || local.timeoutMs <= 0)) throw new BashArgumentError('invalid timeoutMs: expected a positive finite number', 'timeoutMs')
         timeoutMs = Math.min(local.timeoutMs ?? 120_000, HOST_MAX_BASH_TIMEOUT_MS)
         local.timeoutMs = timeoutMs
-        local.workdir = resolveWorkdir(local, exec.agent?.session)
+        if (!exec.agent?.session?.id) return hostFailure('EXECUTOR_UNAVAILABLE: an authoritative session is required.', timeoutMs)
+        const directory = ctx.get('workingDirectory')
+        const cwd = directory ? await directory.ensure(exec.agent, exec.signal) : exec.agent.session.header.cwd
+        local.workdir = resolveWorkdir(local, cwd)
         // Pure validation occurs before approval, job admission or physical preparation.
         base.resolve(local)
         if (typeof args.description !== 'string' || !args.description.trim()) throw new BashArgumentError('invalid description: expected a non-empty string', 'description')
-        if (!exec.agent?.session?.id) return hostFailure('EXECUTOR_UNAVAILABLE: an authoritative session is required.', timeoutMs)
         const standing = ctx.get('sandboxPolicy')?.resolve({ session: exec.agent.session })
         if (!standing || !['read-only', 'workspace-write', 'danger-full-access'].includes(standing.mode)) return hostFailure('EXECUTOR_UNAVAILABLE: authoritative session policy is unavailable.', timeoutMs)
         policy = await approveBashPolicy(ctx, args, exec, standing)
@@ -68,7 +70,7 @@ export function hostBashDefinition(ctx: ShellContext, base: ShellBase, createExe
         const approvedPolicy = policy
         const start: StartShell = async (execution, options) => {
           attempted = true
-          process = await createExecution(local, execution, standing, approvedPolicy, dshEnv, options)
+          process = await createExecution(local, execution, standing, approvedPolicy, dshEnv, { ...options, sessionDirectory: directory ? cwd : undefined })
           return process
         }
         if (jobs) {

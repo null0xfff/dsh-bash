@@ -50,6 +50,8 @@ node bin/dsh-bash.mjs build-ipc
 
 Re-run `node bin/dsh-bash.mjs status` afterward to verify both lines.
 
+Restricted commands check the workspace root's Windows ACL. If it grants write access to Everyone or the current logon SID, `ops_bash` reports `UNSAFE_WORKSPACE_ACL` before starting Bash. Use a workspace whose write permissions are granted to your user account.
+
 ## First run
 
 Once the runtime is ready and DSH has reloaded or restarted, send this prompt to your Agent:
@@ -67,7 +69,7 @@ hello from bash
 ### Execution behavior
 
 - Each `ops_bash` call starts a fresh shell.
-- Pass either `command` or `script_path` per call, with an optional `workdir` to set the working directory.
+- Pass either `command` or `script_path` per call, with an optional `workdir`. An omitted or blank value uses the current session directory, and relative paths start there. Entering or leaving a worktree changes that base on the next call.
 - Background job support depends on whether the host provides the corresponding job service and controller.
 
 ## Common configuration
@@ -85,11 +87,12 @@ See [`src/config.ts`](./src/config.ts) and [`cordis.patch.yml`](./cordis.patch.y
 
 ## Compatibility and verification
 
-- **Version**: `0.1.4`
+- **Version**: `0.1.5`
 - **Node.js**: `^22.19 || >=24`
-- **DSH compatibility**: `0.2.1-rc.2 || 0.2.1-rc.3 || >=0.2.2-rc.1 <0.2.3-0`
+- **DSH compatibility**: `0.2.1-rc.2 || 0.2.1-rc.3 || >=0.2.2-rc.1 <0.2.3-0 || 0.2.3-alpha.2`
   - **Verified**: `0.2.2-rc.1` through `0.2.2-rc.5` were tested with live host components for execution, background jobs, and permission boundaries. `0.2.1-rc.2` and `0.2.1-rc.3` were tested for per-Agent publishing, foreground execution, and tool revocation when switching to read-only without a sandbox.
-  - **Policy**: Later RCs and final releases on the `0.2.2` line are admitted by the range; `0.2.3` will require re-verification starting from its prereleases.
+  - On Windows x64, `0.2.3-alpha.2` passed headless worktree entry, exit, resume and fork, background jobs, timeout promotion and output spill. Desktop loaded the installed plugin and enforced read-only and workspace-write on a user-owned fixture.
+  - Later `0.2.2` release candidates and the final release remain admitted. On the `0.2.3` line the declaration admits exactly `0.2.3-alpha.2`.
 
 For development verification, run from the repository root:
 

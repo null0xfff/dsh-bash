@@ -75,6 +75,47 @@ suite.test('the mounted tool runs a real command', { skip: !hasBash }, async () 
   assert.equal(value.status, 'completed')
 })
 
+suite.test('each invocation uses the calling agent’s live directory before approval or job admission', { skip: !hasBash }, async () => {
+  const { host, agent, definition, spawns } = await mount({ countSpawns: true })
+  const checkout = fs.mkdtempSync(path.join(workspaceRoot, 'checkout-'))
+  fs.mkdirSync(path.join(checkout, 'sub'))
+  for (const [dir, marker] of [[workspaceRoot, 'original'], [checkout, 'checkout'], [path.join(checkout, 'sub'), 'child']]) {
+    fs.writeFileSync(path.join(dir, 'marker.txt'), marker)
+  }
+  const { signal } = new AbortController()
+  let cwd = checkout, calls = 0
+  host.services.workingDirectory = { get: () => cwd, async ensure(owner, observedSignal) {
+    assert.equal(owner, agent)
+    assert.equal(observedSignal, signal)
+    calls++
+    return cwd
+  } }
+  const read = workdir => definition().execute({ command: 'cat marker.txt', description: 'Read the checkout marker', workdir }, { agent, signal })
+  for (const [dir, marker] of [[undefined, 'checkout'], [' ', 'checkout'], ['.', 'checkout'], ['sub', 'child'], [path.join(checkout, 'sub'), 'child']]) {
+    assert.equal((await read(dir)).stdout.text, marker)
+  }
+  cwd = workspaceRoot
+  assert.equal((await read()).stdout.text, 'original')
+  assert.equal(calls, 6)
+  // rc.5 keeps its write root when the session moves during approval.
+  host.setMode('read-only')
+  host.services.approval.request = async () => { cwd = checkout; return 'allowed-once' }
+  const moved = await definition().execute({ command: 'cat marker.txt', description: 'Read the approved checkout',
+    sandbox_permissions: 'danger-full-access', justification: 'Test the approved call' }, { agent, signal })
+  assert.match(moved.error, /AUTHORITY_CHANGED/)
+  let roots = [checkout]
+  host.services.sandboxPolicy.resolve = () => ({ mode: 'read-only', workspaceRoot, additionalWritableRoots: roots })
+  host.services.approval.request = async () => { roots = []; return 'allowed-once' }
+  const revoked = await definition().execute({ command: 'cat marker.txt', description: 'Read the approved checkout',
+    sandbox_permissions: 'workspace-write', justification: 'Test the approved call' }, { agent, signal })
+  assert.match(revoked.error, /AUTHORITY_CHANGED/)
+  host.services.workingDirectory.ensure = async () => { throw new Error('session directory unavailable') }
+  const rejected = await read()
+  assert.match(rejected.error, /session directory unavailable/)
+  assert.equal(rejected.failure.effectState, 'none')
+  assert.equal(spawns(), 6)
+})
+
 suite.test('a failing command returns the host failure shape instead of throwing', { skip: !hasBash }, async () => {
   const { definition, agent } = await mount()
   const value = await definition().execute({ command: 'exit 7', description: 'failure' }, { agent })

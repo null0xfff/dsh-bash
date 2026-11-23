@@ -40,7 +40,7 @@ export interface ShellExecution {
   signal?: string | null
   sandbox?: ShellResult['sandbox']
 }
-export interface ExecutionOptions { onExpiry?: 'none' }
+export interface ExecutionOptions { onExpiry?: 'none'; sessionDirectory?: string }
 export interface ShellExecutionSpec extends ExecutionOptions {
   command?: string
   scriptPath?: string
@@ -88,6 +88,10 @@ export interface ShellJobs {
   read(id: string, owner?: string): { chunks: { channel: string; text: string }[]; lossy: boolean; job: { output: { spillPaths?: string[] } } }
 }
 interface ShellServices {
+  workingDirectory: {
+    ensure(agent: NonNullable<ShellCall['agent']>, signal?: AbortSignal): Promise<string>
+    get(session: NonNullable<ShellCall['agent']>['session']): string
+  }
   jobs: ShellJobs
   approval: { request(input: { agent: NonNullable<ShellCall['agent']>; callId?: ShellCall['callId']; toolName: string; reason: string; signal?: AbortSignal }): Promise<string> }
   subprocess: Pick<SubprocessRuntime, 'spawn'>

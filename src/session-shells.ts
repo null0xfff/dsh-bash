@@ -36,7 +36,7 @@ function windowsFlavoured(cwd: unknown) {
  * back to the session directory like an omitted value instead of failing the
  * spawn (the executor rejects paths that do not exist).
  *
- * A relative workdir is anchored at `session.header.cwd`, never at the helper
+ * A relative workdir is anchored at the current session directory, never at the helper
  * process's own cwd: that process belongs to the plugin host, and a caller's `.`
  * means the calling session's workspace (#180, #204 P3). Absolute paths are
  * returned unchanged, and a non-string still reaches the executor's own
@@ -53,16 +53,20 @@ function windowsFlavoured(cwd: unknown) {
  * the exact ambient base the anchoring here exists to remove, and where a decoy
  * directory made the command run in the wrong tree with exit 0.
  * @param {object} args - the tool call arguments.
- * @param {object} session - the authoritative DSH session.
+ * @param {string|undefined} cwd - the directory supplied by the calling session.
  * @returns {string|undefined} the absolute workdir, or the session directory.
  * @throws {BashArgumentError} when a relative path has no absolute session workspace to anchor at,
  *   names a drive other than the session's, or is a drive-less POSIX absolute path on Windows.
  */
-export function sessionWorkdir(args: { workdir?: unknown } | null | undefined, session: { header?: { cwd?: string } } | undefined) {
+export function sessionWorkdir(args: { workdir?: unknown } | null | undefined, cwd: string | undefined) {
   const raw = args?.workdir
   const explicit = typeof raw === 'string' && raw.trim() === '' ? undefined : raw
-  const cwd = session?.header?.cwd
-  if (explicit === undefined || explicit === null) return cwd
+  if (explicit === undefined || explicit === null) {
+    if (!cwd || !(windowsFlavoured(cwd) ? path.win32 : path.posix).isAbsolute(cwd)) {
+      throw new BashArgumentError('invalid workdir: the session has no absolute working directory', 'workdir')
+    }
+    return cwd
+  }
   if (typeof explicit !== 'string') return explicit
   const win = windowsFlavoured(cwd)
   const p = win ? path.win32 : path.posix

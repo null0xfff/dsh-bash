@@ -263,9 +263,9 @@ suite.test('LC_ALL is neutralised instead of forced, so UTF-8 output stays reada
 })
 
 suite.test('the session workdir is anchored, never a host-relative path', () => {
-  assert.equal(sessionWorkdir({ workdir: 'sub' }, { header: { cwd: scratch } }), path.resolve(scratch, 'sub'))
-  assert.equal(sessionWorkdir({}, { header: { cwd: scratch } }), scratch)
-  assert.equal(sessionWorkdir({ workdir: '   ' }, { header: { cwd: scratch } }), scratch)
+  assert.equal(sessionWorkdir({ workdir: 'sub' }, scratch), path.resolve(scratch, 'sub'))
+  assert.equal(sessionWorkdir({}, scratch), scratch)
+  assert.equal(sessionWorkdir({ workdir: '   ' }, scratch), scratch)
 })
 
 suite.test('the default grace period matches the host executor', () => {

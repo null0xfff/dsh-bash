@@ -1,6 +1,6 @@
 {
   "name": "dsh-bash",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "DSH plugin that publishes ops_bash over a resolved bash with the host's sandbox, spill and job semantics. Extracted from dsh-ops 0.4.1.",
   "license": "MIT",
   "author": "null0xfff",
@@ -80,11 +80,11 @@
   },
   "engines": {
     "node": "^22.19 || >=24",
-    "dsh": "0.2.1-rc.2 || 0.2.1-rc.3 || >=0.2.2-rc.1 <0.2.3-0"
+    "dsh": "0.2.1-rc.2 || 0.2.1-rc.3 || >=0.2.2-rc.1 <0.2.3-0 || 0.2.3-alpha.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.4",
-    "@deepseek-ai/dsh": "0.2.1-rc.2 || 0.2.1-rc.3 || >=0.2.2-rc.1 <0.2.3-0"
+    "@deepseek-ai/dsh": "0.2.1-rc.2 || 0.2.1-rc.3 || >=0.2.2-rc.1 <0.2.3-0 || 0.2.3-alpha.2"
   },
   "peerDependenciesMeta": {
     "@deepseek-ai/cordis": {

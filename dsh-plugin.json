@@ -3,7 +3,7 @@
   "manifestVersion": "0.15",
   "id": "dsh-bash.shell",
   "name": "dsh-bash",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "license": "MIT",
   "facets": {
     "host": {
