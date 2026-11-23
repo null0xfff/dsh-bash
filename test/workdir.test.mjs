@@ -5,11 +5,11 @@ import { createSuite } from './lib/harness.mjs'
 const { sessionWorkdir } = await import('../lib/session-shells.js')
 const suite = createSuite('workdir')
 
-const win = (workdir, cwd = 'C:\\ws') => sessionWorkdir(workdir === undefined ? {} : { workdir }, { header: { cwd } })
+const win = (workdir, cwd = 'C:\\ws') => sessionWorkdir(workdir === undefined ? {} : { workdir }, cwd)
 
 suite.test('an omitted workdir is the session workspace', () => {
   assert.equal(win(undefined), 'C:\\ws')
-  assert.equal(sessionWorkdir({}, { header: { cwd: '/home/u/ws' } }), '/home/u/ws')
+  assert.equal(sessionWorkdir({}, '/home/u/ws'), '/home/u/ws')
 })
 
 suite.test('an empty or whitespace workdir is a placeholder, not a directory', () => {
@@ -20,13 +20,13 @@ suite.test('an empty or whitespace workdir is a placeholder, not a directory', (
 
 suite.test('an absolute workdir passes through unchanged', () => {
   assert.equal(win('D:\\projects\\x'), 'D:\\projects\\x')
-  assert.equal(sessionWorkdir({ workdir: '/home/u/x' }, { header: { cwd: '/home/u/ws' } }), '/home/u/x')
+  assert.equal(sessionWorkdir({ workdir: '/home/u/x' }, '/home/u/ws'), '/home/u/x')
 })
 
 suite.test('a relative workdir is anchored at the session workspace', () => {
   assert.equal(win('sub'), 'C:\\ws\\sub')
   assert.equal(win('a/b'), 'C:\\ws\\a\\b')
-  assert.equal(sessionWorkdir({ workdir: 'sub' }, { header: { cwd: '/home/u/ws' } }), '/home/u/ws/sub')
+  assert.equal(sessionWorkdir({ workdir: 'sub' }, '/home/u/ws'), '/home/u/ws/sub')
 })
 
 suite.test('a bash-style drive path is mapped onto the Windows form', () => {
@@ -47,7 +47,7 @@ suite.test('a drive-relative path on the session drive is anchored, not trusted'
 
 suite.test('a drive-relative path on another drive is refused', () => {
   assert.throws(() => win('D:child'), /names drive D:/)
-  assert.throws(() => sessionWorkdir({ workdir: 'D:child' }, { header: { cwd: '\\\\server\\share' } }), /no drive/)
+  assert.throws(() => sessionWorkdir({ workdir: 'D:child' }, '\\\\server\\share'), /no drive/)
 })
 
 suite.test('a rooted path without a drive stays on the session drive', () => {
@@ -62,12 +62,12 @@ suite.test('a UNC path passes through', () => {
 })
 
 suite.test('a POSIX-spelled session keeps POSIX rules even on a Windows host', () => {
-  assert.equal(sessionWorkdir({ workdir: '/tmp/x' }, { header: { cwd: '/home/u/ws' } }), '/tmp/x')
+  assert.equal(sessionWorkdir({ workdir: '/tmp/x' }, '/home/u/ws'), '/tmp/x')
 })
 
 suite.test('a relative path without an absolute session workspace is refused', () => {
-  assert.throws(() => sessionWorkdir({ workdir: 'sub' }, { header: { cwd: 'relative/ws' } }), /needs an absolute session workspace/)
-  assert.throws(() => sessionWorkdir({ workdir: 'sub' }, {}), /needs an absolute session workspace/)
+  assert.throws(() => sessionWorkdir({ workdir: 'sub' }, 'relative/ws'), /needs an absolute session workspace/)
+  assert.throws(() => sessionWorkdir({}, undefined), /no absolute working directory/)
   assert.throws(() => sessionWorkdir({ workdir: 'sub' }, undefined), /needs an absolute session workspace/)
 })
 

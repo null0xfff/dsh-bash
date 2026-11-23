@@ -3,6 +3,7 @@ import path from 'node:path'
 import type { ConfinedArgv } from '@deepseek-ai/dsh-sandbox'
 import type { ShellContext, ShellCall, ShellPolicy, ExecutionOptions, ShellExecution, ShellResult } from './types.js'
 import { bashToolDefinition, withBashStatus } from './tool.js'
+import { sameSessionPolicy } from './approval.js'
 import { confinedBash } from '../bash-ipc.js'
 import { prepareWorkspace } from '../workspace-preparation.js'
 import { executionRestriction } from '../permissions.js'
@@ -13,7 +14,8 @@ export function startSessionBash({ ctx, bash, active }: { ctx: ShellContext; bas
   const session = exec.agent.session
   const assertAuthority = () => {
     const current = ctx.get('sandboxPolicy')?.resolve({ session })
-    if (!active() || current?.mode !== standing.mode || current?.workspaceRoot !== standing.workspaceRoot) {
+    const moved = options.sessionDirectory !== undefined && ctx.get('workingDirectory')?.get(session) !== options.sessionDirectory
+    if (!active() || moved || !sameSessionPolicy(current, standing)) {
       throw new Error('AUTHORITY_CHANGED: session authority changed before execution; no command executed. Read the current policy before another call.')
     }
   }

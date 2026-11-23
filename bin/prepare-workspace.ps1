@@ -1,5 +1,5 @@
 # Trusted bootstrap for DSH workspace-write. Never accepts model-selected roots.
-param([Parameter(Mandatory=$true)][string]$Workspace, [Parameter(Mandatory=$true)][string]$BackupDir)
+param([Parameter(Mandatory=$true)][string]$Workspace, [Parameter(Mandatory=$true)][string]$BackupDir, [switch]$CheckOnly)
 $ErrorActionPreference = 'Stop'
 $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
 $principal = [Security.Principal.WindowsPrincipal]::new($identity)
@@ -11,6 +11,16 @@ while ($null -ne $cursor) {
     $cursor = $cursor.Parent
 }
 $acl = Get-Acl -LiteralPath $item.FullName
+# The Windows provider retains Everyone and the logon SID in its restricted token.
+# Check grants on this root and grants it propagates before the provider labels it.
+$ambient = @('S-1-1-0') + @($identity.Groups | ForEach-Object { $_.Value } | Where-Object { $_ -like 'S-1-5-5-*' })
+$writeRights = [Security.AccessControl.FileSystemRights]'Write, Delete, DeleteSubdirectoriesAndFiles, ChangePermissions, TakeOwnership'
+foreach ($rule in $acl.GetAccessRules($true, $true, [Security.Principal.SecurityIdentifier])) {
+    if ($rule.AccessControlType -eq 'Allow' -and $ambient -contains $rule.IdentityReference.Value -and ($rule.FileSystemRights -band $writeRights)) {
+        throw 'UNSAFE_WORKSPACE_ACL: the workspace grants write access to a group retained in read-only mode. Select a workspace with a user-specific write ACL.'
+    }
+}
+if ($CheckOnly) { exit 0 }
 if ($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $identity.User.Value) {
     throw 'Workspace is not owned by the current user; refusing automatic ACL preparation'
 }

@@ -50,7 +50,7 @@ const sha256File = file => new Promise((resolve, reject) => {
 const receipt = readReceipt()
 if (!force && receipt?.schemaVersion === 1 && receipt?.version === pin.version
   && receipt?.sha256 === pin.sha256 && fs.existsSync(executable)) {
-  console.log(`bash: already provisioned â€?${executable}`)
+  console.log(`bash: already provisioned at ${executable}`)
   console.log(`  version: ${pin.version}`)
   console.log(`  sha256:  ${pin.sha256}`)
   process.exit(0)

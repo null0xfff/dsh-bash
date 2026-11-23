@@ -23,6 +23,13 @@ export function validateBashEscalation(args: Record<string, unknown>, standing: 
   }
 }
 
+export function sameSessionPolicy(current: ShellPolicy | undefined, standing: ShellPolicy): boolean {
+  if (!current || current.mode !== standing.mode || current.workspaceRoot !== standing.workspaceRoot || current.sessionId !== standing.sessionId) return false
+  const roots = current.additionalWritableRoots ?? []
+  const previous = standing.additionalWritableRoots ?? []
+  return roots.length === previous.length && roots.every((root, index) => root === previous[index])
+}
+
 export async function approveBashPolicy(ctx: ShellContext, args: Record<string, unknown>, exec: ShellCall, standing: ShellPolicy): Promise<ShellPolicy> {
   validateBashEscalation(args, standing)
   if (args.sandbox_permissions === undefined || args.sandbox_permissions === standing.mode) return standing
@@ -33,7 +40,7 @@ export async function approveBashPolicy(ctx: ShellContext, args: Record<string, 
   if (outcome !== 'allowed-once') throw new Error(`APPROVAL_${String(outcome).toUpperCase().replaceAll('-', '_')}: no command executed; the requested wider mode was not granted. Do not retry or bypass this decision.`)
   exec.signal?.throwIfAborted()
   const current = ctx.get('sandboxPolicy')?.resolve({ session: exec.agent.session })
-  if (current?.mode !== standing.mode || current?.workspaceRoot !== standing.workspaceRoot) {
+  if (!sameSessionPolicy(current, standing)) {
     throw new Error('AUTHORITY_CHANGED: session policy changed while approval was pending; no command executed.')
   }
   return { ...standing, mode: args.sandbox_permissions }

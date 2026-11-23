@@ -12,7 +12,6 @@ import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 const script = fileURLToPath(new URL('../bin/prepare-workspace.ps1', import.meta.url))
 const pending = new Map<string, Promise<void>>()
-const prepared = new Set<string>()
 /** Whether the given path, or any ancestor of it, is a reparse point (junction or symlink).
  * Judged on the path as given, never on its resolved form: resolving first hides a link above the
  * root, and an 8.3 short name resolves to its long form without any link being involved.
@@ -24,8 +23,8 @@ function traversesReparsePoint(target: string) {
     if (parent === current) return false
   }
 }
-export function prepareWorkspace(policy: Pick<SandboxExecutionPolicy, 'mode' | 'workspaceRoot'> | undefined, { platform = process.platform, run = runPreparation }: { platform?: NodeJS.Platform; run?: (root: string) => void | Promise<void> } = {}): Promise<void> {
-  if (platform !== 'win32' || policy?.mode !== 'workspace-write') return Promise.resolve()
+export function prepareWorkspace(policy: Pick<SandboxExecutionPolicy, 'mode' | 'workspaceRoot'> | undefined, { platform = process.platform, run = (root, checkOnly) => runPreparation(root, { checkOnly }) }: { platform?: NodeJS.Platform; run?: (root: string, checkOnly: boolean) => void | Promise<void> } = {}): Promise<void> {
+  if (platform !== 'win32' || !policy || policy.mode === 'danger-full-access') return Promise.resolve()
   if (typeof policy.workspaceRoot !== 'string' || !path.isAbsolute(policy.workspaceRoot)) return Promise.reject(new Error('Invalid authoritative workspace root'))
   const root = fs.realpathSync.native(policy.workspaceRoot)
   // Do not silently resolve a link selected as the authority root: the authority would be a
@@ -35,12 +34,13 @@ export function prepareWorkspace(policy: Pick<SandboxExecutionPolicy, 'mode' | '
   if (traversesReparsePoint(policy.workspaceRoot)) {
     return Promise.reject(new Error('Workspace root must not resolve through a junction or symlink'))
   }
-  if (prepared.has(root)) return Promise.resolve()
-  if (!pending.has(root)) {
-    const work = Promise.resolve().then(() => run(root)).then(() => { prepared.add(root) }).finally(() => { pending.delete(root) })
-    pending.set(root, work)
+  const checkOnly = policy.mode === 'read-only'
+  const key = `${policy.mode}:${root}`
+  if (!pending.has(key)) {
+    const work = Promise.resolve().then(() => run(root, checkOnly)).finally(() => { pending.delete(key) })
+    pending.set(key, work)
   }
-  return pending.get(root)!
+  return pending.get(key)!
 }
 /** Safety net only: the root DACL write no longer scales with workspace size (#43). */
 export const PREPARATION_TIMEOUT_MS = 120_000
@@ -52,6 +52,9 @@ const PREREQUISITE = /not owned by the current user|reparse point|Explicit effec
 /** Name the cause of a failed preparation run, so a policy, a folder and an executor problem read differently (#66). */
 export function classifyPreparationFailure(output: string, { root, script: file = script }: { root?: string; script?: string } = {}) {
   const tail = output.trim() || '(no output)'
+  if (output.includes('UNSAFE_WORKSPACE_ACL:')) {
+    return `UNSAFE_WORKSPACE_ACL: ${root} grants write access to a group retained in read-only mode. Select a workspace with a user-specific write ACL.`
+  }
   if (EXECUTION_POLICY.test(output)) {
     return `PowerShell execution policy blocked dsh-bash's own preparation script ${file} even with -ExecutionPolicy Bypass, so the policy comes from Group Policy (MachinePolicy/UserPolicy). Ask an administrator, check \`powershell.exe -NoProfile -Command Get-ExecutionPolicy -List\`, or use danger-full-access for this session (it skips preparation). Output: ${tail}`
   }
@@ -95,7 +98,7 @@ export function preparationEnvironment(source: NodeJS.ProcessEnv = process.env) 
  * @param {string} root - the authoritative workspace root.
  * @returns {{executable: string, args: string[], options: object}}
  */
-export function preparationSpawnSpec(root: string): { executable: string; args: string[]; options: SpawnOptionsWithStdioTuple<StdioNull, StdioPipe, StdioPipe> } {
+export function preparationSpawnSpec(root: string, checkOnly = false): { executable: string; args: string[]; options: SpawnOptionsWithStdioTuple<StdioNull, StdioPipe, StdioPipe> } {
   const windows = process.env.SystemRoot ?? 'C:\\Windows'
   const home = process.env.DSH_HOME ?? path.join(os.homedir(), '.dsh')
   const backups = path.join(home, 'dsh-bash/acl-backups')
@@ -103,14 +106,14 @@ export function preparationSpawnSpec(root: string): { executable: string; args: 
     executable: path.join(windows, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
     // Our own trusted bootstrap: execution policy is no security boundary for it, and the Windows
     // client default (Restricted) would otherwise block every shell tool (#66). Group Policy still wins.
-    args: ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, '-Workspace', root, '-BackupDir', backups],
+    args: ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', script, '-Workspace', root, '-BackupDir', backups, ...(checkOnly ? ['-CheckOnly'] : [])],
     options: { windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'], env: preparationEnvironment() },
   }
 }
-export function runPreparation(root: string, { executable, args, timeoutMs = PREPARATION_TIMEOUT_MS }: { executable?: string; args?: string[]; timeoutMs?: number } = {}): Promise<void> {
+export function runPreparation(root: string, { executable, args, checkOnly = false, timeoutMs = PREPARATION_TIMEOUT_MS }: { checkOnly?: boolean; executable?: string; args?: string[]; timeoutMs?: number } = {}): Promise<void> {
   const home = process.env.DSH_HOME ?? path.join(os.homedir(), '.dsh')
   const backups = path.join(home, 'dsh-bash/acl-backups')
-  const spec = preparationSpawnSpec(root)
+  const spec = preparationSpawnSpec(root, checkOnly)
   executable ??= spec.executable
   args ??= spec.args
   return new Promise<void>((resolve, reject) => {
@@ -142,7 +145,8 @@ export function mountWorkspacePreparation(root: Context) {
     ctx.on('tools/execute', async (exec, next) => {
       const session = exec?.agent?.session
       if (session && ['run_code', 'pwsh', 'bash', 'pwsh_persistent', 'bash_persistent'].includes(exec.name)) {
-        await prepareWorkspace(ctx.get('sandboxPolicy')!.resolve({ session }))
+        const policy = ctx.get('sandboxPolicy')!.resolve({ session })
+        if (policy.mode === 'workspace-write') await prepareWorkspace(policy)
       }
       return next()
     })
